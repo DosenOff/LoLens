@@ -1,0 +1,12 @@
+{
+  "name": "draft-intel",
+  "version": "0.1.0",
+  "description": "Real-time League draft intelligence app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^32.0.0"
+  }
+}
