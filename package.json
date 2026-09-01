@@ -4,7 +4,8 @@
   "description": "Real-time League draft intelligence app",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "test-lcu": "node scripts/test-lcu.js"
   },
   "devDependencies": {
     "electron": "^32.0.0"
