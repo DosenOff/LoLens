@@ -134,3 +134,23 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Electron packaged build output
+release/
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.snap
+
+# Riot API secrets and local data
+*riot-api-key*
+config/secrets.*
+data/
+*.db
+*.sqlite
