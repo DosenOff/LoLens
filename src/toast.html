@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            overflow: hidden;
+            -webkit-app-region: no-drag;
+        }
+
+        .toast {
+            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 16px;
+            background: linear-gradient(135deg, #0F1B33, #0A1428);
+            border: 1px solid #C89B3C;
+            border-radius: 4px;
+            color: #F0E6D2;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #0AC8B9;
+            box-shadow: 0 0 8px #0AC8B9;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toast"><span class="dot"></span>LoLens ready</div>
+</body>
+
+</html>

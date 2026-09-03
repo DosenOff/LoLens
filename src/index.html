@@ -344,170 +344,178 @@
       <h1>Draft Intel</h1>
       <div class="subtitle">Live champion select &amp; historical matchup analysis</div>
     </div>
-    <div class="status live"><span class="dot"></span>Champion select — turn 7</div>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">Waiting for League...</span></div>
   </div>
 
   <div class="turn-banner">
-    <span class="label">Your turn to pick</span>
-    <span class="timer">00:27</span>
+    <span class="label" id="turnLabel">Not in champion select</span>
+    <span class="timer" id="turnTimer">--:--</span>
   </div>
 
   <div class="draft">
     <div class="team blue frame">
       <div class="corner-tr"></div><div class="corner-bl"></div>
-      <div class="team-header"><span>Blue side</span><span>Order</span></div>
+      <div class="team-header"><span>Your team</span><span>Order</span></div>
 
       <div class="section-label">Picks</div>
-      <div class="slot filled">
-        <div class="portrait">AAT</div>
-        <div class="name">Aatrox</div>
-        <div class="role">TOP</div>
-      </div>
-      <div class="slot filled">
-        <div class="portrait">LEE</div>
-        <div class="name">Lee Sin</div>
-        <div class="role">JNG</div>
-      </div>
-      <div class="slot active">
-        <div class="portrait">?</div>
-        <div class="name">Hovering...</div>
-        <div class="role">MID</div>
-      </div>
-      <div class="slot">
-        <div class="portrait">?</div>
-        <div class="name">Waiting</div>
-        <div class="role">ADC</div>
-      </div>
-      <div class="slot">
-        <div class="portrait">?</div>
-        <div class="name">Waiting</div>
-        <div class="role">SUP</div>
-      </div>
+      <div id="myTeamSlots"></div>
 
       <div class="section-label">Bans</div>
-      <div class="ban-row">
-        <div class="ban-chip filled">YAS</div>
-        <div class="ban-chip filled">ZED</div>
-        <div class="ban-chip"></div>
-      </div>
+      <div class="ban-row" id="myBans"></div>
     </div>
 
     <div class="spine"><span class="you-tag">you</span></div>
 
     <div class="team red frame">
       <div class="corner-tr"></div><div class="corner-bl"></div>
-      <div class="team-header"><span>Red side</span><span>Order</span></div>
+      <div class="team-header"><span>Enemy team</span><span>Order</span></div>
 
       <div class="section-label">Picks</div>
-      <div class="slot filled">
-        <div class="portrait">REN</div>
-        <div class="name">Renekton</div>
-        <div class="role">TOP</div>
-      </div>
-      <div class="slot filled">
-        <div class="portrait">VI</div>
-        <div class="name">Vi</div>
-        <div class="role">JNG</div>
-      </div>
-      <div class="slot">
-        <div class="portrait">?</div>
-        <div class="name">Waiting</div>
-        <div class="role">MID</div>
-      </div>
-      <div class="slot">
-        <div class="portrait">?</div>
-        <div class="name">Waiting</div>
-        <div class="role">ADC</div>
-      </div>
-      <div class="slot">
-        <div class="portrait">?</div>
-        <div class="name">Waiting</div>
-        <div class="role">SUP</div>
-      </div>
+      <div id="theirTeamSlots"></div>
 
       <div class="section-label">Bans</div>
-      <div class="ban-row">
-        <div class="ban-chip filled">LEO</div>
-        <div class="ban-chip filled">AHR</div>
-        <div class="ban-chip"></div>
-      </div>
+      <div class="ban-row" id="theirBans"></div>
     </div>
   </div>
 
   <div class="report frame">
     <div class="corner-tr"></div><div class="corner-bl"></div>
     <div class="report-header">
-      <div class="title">Your history vs. enemy mid</div>
-      <div class="meta">Renekton hovered · red side</div>
+      <div class="title" id="reportTitle">Your history vs. enemy picks</div>
+      <div class="meta" id="reportMeta">Waiting for a pick...</div>
     </div>
-    <div class="report-body">
-      <div class="matchup-grid">
-        <div class="matchup-card">
-          <div class="champ">Gwen</div>
-          <div class="stat-line"><span>Win rate</span><span class="value pos">61.1%</span></div>
-          <div class="stat-line"><span>Gold diff @15</span><span class="value pos">+312</span></div>
-          <div class="games">18 games recorded</div>
-        </div>
-        <div class="matchup-card">
-          <div class="champ">Ornn</div>
-          <div class="stat-line"><span>Win rate</span><span class="value pos">57.1%</span></div>
-          <div class="stat-line"><span>Gold diff @15</span><span class="value pos">+104</span></div>
-          <div class="games">14 games recorded</div>
-        </div>
-        <div class="matchup-card">
-          <div class="champ">Camille</div>
-          <div class="stat-line"><span>Win rate</span><span class="value neg">40.0%</span></div>
-          <div class="stat-line"><span>Gold diff @15</span><span class="value neg">-188</span></div>
-          <div class="games">10 games recorded</div>
-        </div>
-      </div>
+    <div class="report-body" id="reportBody">
+      <div class="report-empty">No enemy champion picked yet.</div>
     </div>
   </div>
 
-  <footer>mock data · not yet connected to LCU or Riot API</footer>
+  <footer id="footerNote">not yet connected · waiting for League</footer>
 </div>
 
 <script>
-  // ---- Mock data, shaped like the real thing will be ----
-  // When wiring this up for real:
-  //   - champSelect state comes from LCU: GET /lol-champ-select/v1/session
-  //   - matchup stats come from Riot Web API match history, aggregated locally
-  //
-  // Keeping this shape now means swapping in real fetch() calls later
-  // shouldn't require touching the render functions below.
-
-  const mockSession = {
-    phase: "BAN_PICK",
-    timer: { adjustedTimeLeftInPhase: 27000 },
-    myTeam: [
-      { championId: "Aatrox", position: "top", pickTurn: 1 },
-      { championId: "Lee Sin", position: "jungle", pickTurn: 2 },
-      { championId: null, position: "middle", pickTurn: 3, isLocalPlayer: true },
-      { championId: null, position: "bottom", pickTurn: 4 },
-      { championId: null, position: "utility", pickTurn: 5 }
-    ],
-    theirTeam: [
-      { championId: "Renekton", position: "top" },
-      { championId: "Vi", position: "jungle" },
-      { championId: null, position: "middle" },
-      { championId: null, position: "bottom" },
-      { championId: null, position: "utility" }
-    ],
-    bans: {
-      myTeamBans: ["Yasuo", "Zed"],
-      theirTeamBans: ["Leona", "Ahri"]
-    }
-  };
-
+  // Mock matchup data — same shape the real Riot API aggregation will use.
+  // Keyed to Soraka since that's what actually shows up as the enemy's
+  // first pick in custom bot games (Renekton isn't available there).
   const mockMatchupData = {
-    "Renekton": [
-      { champion: "Gwen", games: 18, winRate: 61.1, goldDiff15: 312 },
-      { champion: "Ornn", games: 14, winRate: 57.1, goldDiff15: 104 },
-      { champion: "Camille", games: 10, winRate: 40.0, goldDiff15: -188 }
+    "Soraka": [
+      { champion: "Zyra", games: 12, winRate: 58.3, goldDiff15: 210 },
+      { champion: "Brand", games: 9, winRate: 44.4, goldDiff15: -95 },
+      { champion: "Lux", games: 15, winRate: 66.7, goldDiff15: 340 }
     ]
   };
 
-  console.log("Draft Intel UI loaded. Mock session:", mockSession);
+  // League doesn't assign a real lane for bots/enemy players in custom
+  // games (assignedPosition comes back blank). This is a best-effort guess
+  // based on standard team order, clearly marked with "~" so it's never
+  // mistaken for confirmed data.
+  const GUESSED_LANE_ORDER = ['top', 'jungle', 'middle', 'bottom', 'support'];
+
+  function abbreviate(name) {
+    return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
+  }
+
+  function renderTeamSlots(containerId, players, localPlayerCellId) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = players.map((p, index) => {
+      const filled = Boolean(p.championName);
+      const isYou = p.cellId === localPlayerCellId;
+      const classes = ['slot', filled ? 'filled' : '', isYou ? 'active' : ''].filter(Boolean).join(' ');
+      const portraitText = filled ? abbreviate(p.championName) : '?';
+      const nameText = filled ? p.championName : (isYou ? 'Your pick pending' : 'Waiting');
+
+      let roleText;
+      if (p.position) {
+        roleText = p.position.toUpperCase();
+      } else if (isYou) {
+        roleText = 'YOU';
+      } else {
+        roleText = '~' + (GUESSED_LANE_ORDER[index] || '').toUpperCase();
+      }
+
+      return `
+        <div class="${classes}">
+          <div class="portrait">${portraitText}</div>
+          <div class="name">${nameText}</div>
+          <div class="role">${roleText}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderBans(containerId, banNames) {
+    const el = document.getElementById(containerId);
+    const chips = banNames.map((name) => `<div class="ban-chip filled">${abbreviate(name)}</div>`);
+    while (chips.length < 3) chips.push('<div class="ban-chip"></div>');
+    el.innerHTML = chips.join('');
+  }
+
+  function renderReport(session) {
+    const enemyPick = session.theirTeam.find((p) => p.championName);
+    const title = document.getElementById('reportTitle');
+    const meta = document.getElementById('reportMeta');
+    const body = document.getElementById('reportBody');
+
+    if (!enemyPick) {
+      meta.textContent = 'Waiting for a pick...';
+      body.innerHTML = '<div class="report-empty">No enemy champion picked yet.</div>';
+      return;
+    }
+
+    meta.textContent = `${enemyPick.championName} picked · enemy team`;
+
+    const stats = mockMatchupData[enemyPick.championName];
+    if (!stats) {
+      body.innerHTML = `<div class="report-empty">No history recorded vs ${enemyPick.championName} yet.</div>`;
+      return;
+    }
+
+    body.innerHTML = `<div class="matchup-grid">${stats.map((s) => `
+      <div class="matchup-card">
+        <div class="champ">${s.champion}</div>
+        <div class="stat-line"><span>Win rate</span><span class="value ${s.winRate >= 50 ? 'pos' : 'neg'}">${s.winRate}%</span></div>
+        <div class="stat-line"><span>Gold diff @15</span><span class="value ${s.goldDiff15 >= 0 ? 'pos' : 'neg'}">${s.goldDiff15 >= 0 ? '+' : ''}${s.goldDiff15}</span></div>
+        <div class="games">${s.games} games recorded</div>
+      </div>`).join('')}</div>`;
+  }
+
+  function formatTime(totalSeconds) {
+    const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+    const s = String(totalSeconds % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function render(session) {
+    document.getElementById('status').classList.add('live');
+    document.getElementById('statusText').textContent = `Champion select — ${session.phase}`;
+    document.getElementById('footerNote').textContent = 'live · connected to League Client';
+
+    document.getElementById('turnLabel').textContent = session.isMyTurn
+      ? 'Your turn to pick'
+      : 'Waiting for other players...';
+    document.getElementById('turnTimer').textContent = formatTime(session.timeLeftSeconds);
+
+    renderTeamSlots('myTeamSlots', session.myTeam, session.localPlayerCellId);
+    renderTeamSlots('theirTeamSlots', session.theirTeam, session.localPlayerCellId);
+    renderBans('myBans', session.bans.mine);
+    renderBans('theirBans', session.bans.theirs);
+    renderReport(session);
+  }
+
+  function resetToIdle() {
+    document.getElementById('status').classList.remove('live');
+    document.getElementById('statusText').textContent = 'Waiting for champion select...';
+    document.getElementById('footerNote').textContent = 'connected to League · not in champion select';
+    document.getElementById('turnLabel').textContent = 'Not in champion select';
+    document.getElementById('turnTimer').textContent = '--:--';
+    document.getElementById('myTeamSlots').innerHTML = '';
+    document.getElementById('theirTeamSlots').innerHTML = '';
+    document.getElementById('myBans').innerHTML = '';
+    document.getElementById('theirBans').innerHTML = '';
+    document.getElementById('reportMeta').textContent = 'Waiting for a pick...';
+    document.getElementById('reportBody').innerHTML = '<div class="report-empty">No enemy champion picked yet.</div>';
+  }
+
+  window.draftAPI.onSessionUpdate(render);
+  window.draftAPI.onSessionEnded(resetToIdle);
 </script>
 </body>
 </html>

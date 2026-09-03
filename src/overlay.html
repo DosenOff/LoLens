@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            overflow: hidden;
+            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            color: #F0E6D2;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            background: linear-gradient(160deg, #0F1B33, #0A1428);
+            border: 1px solid #C89B3C;
+            border-radius: 4px;
+            padding: 12px 14px;
+        }
+
+        .header {
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #C89B3C;
+            border-bottom: 1px solid rgba(200, 155, 60, 0.3);
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            padding: 3px 0;
+            color: #A09B8C;
+        }
+
+        .row .champ {
+            color: #F0E6D2;
+        }
+
+        .row .value.pos {
+            color: #7FD99B;
+        }
+
+        .row .value.neg {
+            color: #E08A8A;
+        }
+
+        .empty {
+            font-size: 12px;
+            color: #5A5648;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div class="header">
+            <span id="phase">Champ select</span>
+            <span id="timer"></span>
+        </div>
+        <div id="body">
+            <div class="empty">Waiting for a pick...</div>
+        </div>
+    </div>
+
+    <script>
+        // Mock matchup data — same shape as the eventual real Riot API aggregation.
+        // Once the Riot API pipeline exists, this whole object goes away and gets
+        // replaced with a real lookup, but the render() function below won't need
+        // to change - it just asks "do I have stats for this champion name?"
+        const mockMatchupData = {
+            "Soraka": [
+                { champion: "Zyra", games: 12, winRate: 58.3, goldDiff15: 210 },
+                { champion: "Brand", games: 9, winRate: 44.4, goldDiff15: -95 },
+                { champion: "Lux", games: 15, winRate: 66.7, goldDiff15: 340 }
+            ]
+        };
+
+        function render(session) {
+            document.getElementById('timer').textContent = session.timeLeftSeconds + 's';
+
+            const enemyPick = session.theirTeam.find((p) => p.championName);
+            const body = document.getElementById('body');
+
+            if (!enemyPick) {
+                body.innerHTML = '<div class="empty">Waiting for a pick...</div>';
+                return;
+            }
+
+            const stats = mockMatchupData[enemyPick.championName];
+            if (!stats) {
+                body.innerHTML = `<div class="empty">No history vs ${enemyPick.championName} yet</div>`;
+                return;
+            }
+
+            body.innerHTML = stats.map(s => `
+        <div class="row">
+            <span class="champ">${s.champion}</span>
+            <span class="value ${s.winRate >= 50 ? 'pos' : 'neg'}">${s.winRate}% · ${s.games}g</span>
+        </div>
+    `).join('');
+        }
+
+        if (!window.overlayAPI) {
+            document.getElementById('body').innerHTML =
+                '<div class="empty">overlayAPI not available — check overlay-preload.js path/placement</div>';
+        } else {
+            window.overlayAPI.onUpdate(render);
+        }
+    </script>
+</body>
+
+</html>
