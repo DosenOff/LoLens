@@ -393,16 +393,9 @@
 </div>
 
 <script>
-  // Mock matchup data — same shape the real Riot API aggregation will use.
-  // Keyed to Soraka since that's what actually shows up as the enemy's
-  // first pick in custom bot games (Renekton isn't available there).
-  const mockMatchupData = {
-    "Soraka": [
-      { champion: "Zyra", games: 12, winRate: 58.3, goldDiff15: 210 },
-      { champion: "Brand", games: 9, winRate: 44.4, goldDiff15: -95 },
-      { champion: "Lux", games: 15, winRate: 66.7, goldDiff15: 340 }
-    ]
-  };
+  // Matchup stats now come from real personal match history via
+  // session.matchupData, computed in main.js from lib/matchupStats.js.
+  // No more mock data here.
 
   // League doesn't assign a real lane for bots/enemy players in custom
   // games (assignedPosition comes back blank). This is a best-effort guess
@@ -462,9 +455,9 @@
 
     meta.textContent = `${enemyPick.championName} picked · enemy team`;
 
-    const stats = mockMatchupData[enemyPick.championName];
-    if (!stats) {
-      body.innerHTML = `<div class="report-empty">No history recorded vs ${enemyPick.championName} yet.</div>`;
+    const stats = session.matchupData?.[enemyPick.championName];
+    if (!stats || stats.length === 0) {
+      body.innerHTML = `<div class="report-empty">No recorded games vs ${enemyPick.championName} yet.</div>`;
       return;
     }
 
@@ -472,8 +465,7 @@
       <div class="matchup-card">
         <div class="champ">${s.champion}</div>
         <div class="stat-line"><span>Win rate</span><span class="value ${s.winRate >= 50 ? 'pos' : 'neg'}">${s.winRate}%</span></div>
-        <div class="stat-line"><span>Gold diff @15</span><span class="value ${s.goldDiff15 >= 0 ? 'pos' : 'neg'}">${s.goldDiff15 >= 0 ? '+' : ''}${s.goldDiff15}</span></div>
-        <div class="games">${s.games} games recorded</div>
+        <div class="games">${s.wins}/${s.games} games</div>
       </div>`).join('')}</div>`;
   }
 

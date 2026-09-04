@@ -7,6 +7,8 @@
     "start": "electron .",
     "test-lcu": "node scripts/test-lcu.js",
     "fetch-champion-data": "node scripts/fetch-champion-data.js",
+    "fetch-match-ids": "node --env-file=.env scripts/fetch-match-ids.js",
+    "fetch-match-details": "node --env-file=.env scripts/fetch-match-details.js",
     "test-champselect": "node scripts/test-champselect.js"
   },
   "devDependencies": {

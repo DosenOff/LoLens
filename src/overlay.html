@@ -77,16 +77,8 @@
 
     <script>
         // Mock matchup data — same shape as the eventual real Riot API aggregation.
-        // Once the Riot API pipeline exists, this whole object goes away and gets
-        // replaced with a real lookup, but the render() function below won't need
-        // to change - it just asks "do I have stats for this champion name?"
-        const mockMatchupData = {
-            "Soraka": [
-                { champion: "Zyra", games: 12, winRate: 58.3, goldDiff15: 210 },
-                { champion: "Brand", games: 9, winRate: 44.4, goldDiff15: -95 },
-                { champion: "Lux", games: 15, winRate: 66.7, goldDiff15: 340 }
-            ]
-        };
+        // Matchup stats now come from real personal match history via
+        // session.matchupData, computed in main.js from lib/matchupStats.js.
 
         function render(session) {
             document.getElementById('timer').textContent = session.timeLeftSeconds + 's';
@@ -99,9 +91,9 @@
                 return;
             }
 
-            const stats = mockMatchupData[enemyPick.championName];
-            if (!stats) {
-                body.innerHTML = `<div class="empty">No history vs ${enemyPick.championName} yet</div>`;
+            const stats = session.matchupData?.[enemyPick.championName];
+            if (!stats || stats.length === 0) {
+                body.innerHTML = `<div class="empty">No recorded games vs ${enemyPick.championName} yet</div>`;
                 return;
             }
 

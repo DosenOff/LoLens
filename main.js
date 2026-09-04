@@ -10,9 +10,23 @@
 
 const { app, BrowserWindow, Tray, Menu, screen, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { startWatching } = require('./lib/watcher');
 const { championName } = require('./lib/championData');
 const { mapSession } = require('./lib/sessionMapper');
+const { getMatchupsAgainst } = require('./lib/matchupStats');
+
+// Load your personal match history once at startup. If it doesn't exist yet
+// (you haven't run fetch-match-ids/fetch-match0/details), the app still works,
+// it'll just show "no history" for every matchup until that data exists.
+let myMatches = [];
+try {
+  const matchesPath = path.join(__dirname, 'data', 'matches.json');
+  myMatches = JSON.parse(fs.readFileSync(matchesPath, 'utf-8'));
+  console.log(`Loaded ${myMatches.length} matches for personal matchup stats.`);
+} catch {
+  console.log('No data/matches.json found yet — matchup stats will be empty until you run the fetch scripts.');
+}
 
 let tray = null;
 let dashboardWindow = null;
@@ -134,6 +148,24 @@ app.whenReady().then(() => {
     },
     onChampSelectUpdate: (rawSession) => {
       const session = mapSession(rawSession, { championName });
+
+      // Compute real personal matchup stats for every enemy champion
+      // that's actually been picked so far. Keyed by champion name so the
+      // UI can just do matchupData[championName] - same shape the old
+      // mock data used.
+      const matchupData = {};
+      for (const p of session.theirTeam) {
+        if (p.championName && !matchupData[p.championName]) {
+          const stats = getMatchupsAgainst(myMatches, p.championName);
+          matchupData[p.championName] = stats.map((s) => ({
+            champion: s.myChampion,
+            games: s.games,
+            wins: s.wins,
+            winRate: s.winRate
+          }));
+        }
+      }
+      session.matchupData = matchupData;
 
       // Push to the dashboard window if it's open.
       if (dashboardWindow) {
