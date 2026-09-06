@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "package": "electron-builder",
     "test-lcu": "node scripts/test-lcu.js",
     "fetch-champion-data": "node scripts/fetch-champion-data.js",
     "fetch-match-ids": "node --env-file=.env scripts/fetch-match-ids.js",
@@ -12,6 +13,30 @@
     "test-champselect": "node scripts/test-champselect.js"
   },
   "devDependencies": {
-    "electron": "^32.0.0"
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.shawnlee.lolens",
+    "productName": "LoLens",
+    "files": [
+      "main.js",
+      "preload.js",
+      "overlay-preload.js",
+      "lib/**/*",
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "!data/**/*",
+      "!.env",
+      "!.env.example",
+      "!scripts/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    }
   }
 }
