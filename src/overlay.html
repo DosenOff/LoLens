@@ -61,6 +61,31 @@
             color: #5A5648;
             font-style: italic;
         }
+
+        #baseline {
+            white-space: nowrap;
+            overflow: hidden;
+            font-size: 11px;
+            padding: 6px 0;
+            margin-bottom: 6px;
+            border-bottom: 1px solid rgba(200, 155, 60, 0.2);
+            color: #A09B8C;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        #baseline .champ {
+            color: #F0E6D2;
+            font-weight: 500;
+            font-family: 'Oswald', sans-serif;
+        }
+
+        #baseline .pos {
+            color: #7FD99B;
+        }
+
+        #baseline .neg {
+            color: #E08A8A;
+        }
     </style>
 </head>
 
@@ -70,18 +95,53 @@
             <span id="phase">Champ select</span>
             <span id="timer"></span>
         </div>
+        <div id="baseline"></div>
         <div id="body">
             <div class="empty">Waiting for a pick...</div>
         </div>
     </div>
 
     <script>
-        // Mock matchup data — same shape as the eventual real Riot API aggregation.
-        // Matchup stats now come from real personal match history via
-        // session.matchupData, computed in main.js from lib/matchupStats.js.
+        // Matchup stats and the personal-vs-population baseline both come from
+        // real data computed in main.js (lib/matchupStats.js, lib/populationStats.js).
+
+        // Shrinks font-size on an element until its content fits on one line
+        // (or hits minPx, whichever comes first - long names just get small
+        // rather than wrapping or breaking the layout).
+        function fitOneLine(el, maxPx = 11, minPx = 8) {
+            let size = maxPx;
+            el.style.fontSize = size + 'px';
+            while (el.scrollWidth > el.clientWidth && size > minPx) {
+                size -= 0.5;
+                el.style.fontSize = size + 'px';
+            }
+        }
+
+        function renderBaseline(session) {
+            const el = document.getElementById('baseline');
+            const comparison = session.personalVsPopulation;
+
+            if (!comparison) {
+                el.innerHTML = '';
+                return;
+            }
+
+            const you = comparison.personal ? `${comparison.personal.winRate}%` : '—';
+            const pop = comparison.population ? `${comparison.population.winRate}%` : '—';
+            let deltaHtml = '—';
+            if (comparison.personal && comparison.population) {
+                const delta = Math.round((comparison.personal.winRate - comparison.population.winRate) * 10) / 10;
+                const cls = delta >= 0 ? 'pos' : 'neg';
+                deltaHtml = `<span class="${cls}">${delta >= 0 ? '+' : ''}${delta}%</span>`;
+            }
+
+            el.innerHTML = `<span class="champ">${comparison.championName}</span> · You ${you} · ${comparison.tier} ${pop} · ${deltaHtml}`;
+            fitOneLine(el);
+        }
 
         function render(session) {
             document.getElementById('timer').textContent = session.timeLeftSeconds + 's';
+            renderBaseline(session);
 
             const enemyPick = session.theirTeam.find((p) => p.championName);
             const body = document.getElementById('body');

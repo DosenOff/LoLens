@@ -352,6 +352,30 @@
     <span class="timer" id="turnTimer">--:--</span>
   </div>
 
+  <div class="frame" id="baselinePanel" style="display:none; padding:14px 18px; margin-bottom:24px;">
+    <div class="corner-tr"></div><div class="corner-bl"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-family:'Oswald',sans-serif; font-size:15px; color:var(--gold-bright); text-transform:uppercase; letter-spacing:0.5px;" id="baselineChamp">—</div>
+        <div style="font-size:11px; color:var(--parchment-faint); margin-top:2px;" id="baselineSampleNote"></div>
+      </div>
+      <div style="display:flex; gap:24px; align-items:center;">
+        <div style="text-align:center;">
+          <div style="font-size:10px; color:var(--parchment-faint); text-transform:uppercase; letter-spacing:0.5px;">You</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:20px;" id="baselinePersonal">—</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px; color:var(--parchment-faint); text-transform:uppercase; letter-spacing:0.5px;" id="baselineTierLabel">Baseline</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:20px; color:var(--parchment-dim);" id="baselinePopulation">—</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px; color:var(--parchment-faint); text-transform:uppercase; letter-spacing:0.5px;">Delta</div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:20px;" id="baselineDelta">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="draft">
     <div class="team blue frame">
       <div class="corner-tr"></div><div class="corner-bl"></div>
@@ -475,6 +499,60 @@
     return `${m}:${s}`;
   }
 
+  function renderBaselinePanel(session) {
+    const panel = document.getElementById('baselinePanel');
+    const comparison = session.personalVsPopulation;
+
+    if (!comparison) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    panel.style.display = 'block';
+    document.getElementById('baselineChamp').textContent = comparison.championName;
+    document.getElementById('baselineTierLabel').textContent = comparison.tier;
+
+    const personalEl = document.getElementById('baselinePersonal');
+    const populationEl = document.getElementById('baselinePopulation');
+    const deltaEl = document.getElementById('baselineDelta');
+    const sampleNote = document.getElementById('baselineSampleNote');
+
+    const notes = [];
+
+    if (comparison.personal) {
+      personalEl.textContent = `${comparison.personal.winRate}%`;
+      notes.push(`you: ${comparison.personal.games}g`);
+    } else {
+      personalEl.textContent = '—';
+      notes.push('no personal games yet');
+    }
+
+    if (comparison.population) {
+      populationEl.textContent = `${comparison.population.winRate}%`;
+      notes.push(`${comparison.tier.toLowerCase()}: ${comparison.population.games}g sampled`);
+    } else {
+      populationEl.textContent = '—';
+      notes.push('no baseline data yet');
+    }
+
+    if (comparison.personal && comparison.population) {
+      const delta = Math.round((comparison.personal.winRate - comparison.population.winRate) * 10) / 10;
+      deltaEl.textContent = `${delta >= 0 ? '+' : ''}${delta}%`;
+      deltaEl.className = delta >= 0 ? 'pos' : 'neg';
+      deltaEl.style.color = delta >= 0 ? '#7FD99B' : '#E08A8A';
+    } else {
+      deltaEl.textContent = '—';
+      deltaEl.style.color = '';
+    }
+
+    // Low sample-size honesty: don't let a couple of games look authoritative.
+    if (comparison.personal && comparison.personal.games < 5) {
+      notes.push('small sample — take with caution');
+    }
+
+    sampleNote.textContent = notes.join(' · ');
+  }
+
   function render(session) {
     document.getElementById('status').classList.add('live');
     document.getElementById('statusText').textContent = `Champion select — ${session.phase}`;
@@ -490,6 +568,7 @@
     renderBans('myBans', session.bans.mine);
     renderBans('theirBans', session.bans.theirs);
     renderReport(session);
+    renderBaselinePanel(session);
   }
 
   function resetToIdle() {
@@ -504,6 +583,7 @@
     document.getElementById('theirBans').innerHTML = '';
     document.getElementById('reportMeta').textContent = 'Waiting for a pick...';
     document.getElementById('reportBody').innerHTML = '<div class="report-empty">No enemy champion picked yet.</div>';
+    document.getElementById('baselinePanel').style.display = 'none';
   }
 
   window.draftAPI.onSessionUpdate(render);

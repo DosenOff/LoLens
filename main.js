@@ -14,10 +14,16 @@ const fs = require('fs');
 const { startWatching } = require('./lib/watcher');
 const { championName } = require('./lib/championData');
 const { mapSession } = require('./lib/sessionMapper');
-const { getMatchupsAgainst } = require('./lib/matchupStats');
+const { getMatchupsAgainst, getMatchupStats } = require('./lib/matchupStats');
+const { getPopulationStats } = require('./lib/populationStats');
+
+// Which population tier to compare the local player against by default.
+// A future enhancement could detect the player's actual rank instead of
+// hardcoding this - fine for now.
+const POPULATION_COMPARISON_TIER = 'EMERALD';
 
 // Load your personal match history once at startup. If it doesn't exist yet
-// (you haven't run fetch-match-ids/fetch-match0/details), the app still works,
+// (you haven't run fetch-match-ids/fetch-match-details), the app still works,
 // it'll just show "no history" for every matchup until that data exists.
 let myMatches = [];
 try {
@@ -26,6 +32,17 @@ try {
   console.log(`Loaded ${myMatches.length} matches for personal matchup stats.`);
 } catch {
   console.log('No data/matches.json found yet — matchup stats will be empty until you run the fetch scripts.');
+}
+
+// Load rank-specific population baseline data. Same graceful fallback if
+// you haven't run fetch-population-data yet.
+let populationStats = { tiers: {} };
+try {
+  const popPath = path.join(__dirname, 'data', 'population-stats.json');
+  populationStats = JSON.parse(fs.readFileSync(popPath, 'utf-8'));
+  console.log('Loaded population baseline stats.');
+} catch {
+  console.log('No data/population-stats.json found yet — population comparison will be empty until you run fetch-population-data.');
 }
 
 let tray = null;
@@ -87,7 +104,7 @@ function showToast() {
 function showOverlay() {
   if (overlayWindow) return overlayWindow;
 
-  const { x, y, width, height } = topLeftPosition(260, 160);
+  const { x, y, width, height } = topLeftPosition(260, 195);
   overlayWindow = new BrowserWindow({
     x, y, width, height,
     frame: false,
@@ -166,6 +183,21 @@ app.whenReady().then(() => {
         }
       }
       session.matchupData = matchupData;
+
+      // Personal vs. population comparison for whichever champion the
+      // local player has actually picked (if any).
+      const myPick = session.myTeam.find((p) => p.cellId === session.localPlayerCellId);
+      session.personalVsPopulation = null;
+      if (myPick && myPick.championName) {
+        const personal = getMatchupStats(myMatches, { myChampion: myPick.championName });
+        const population = getPopulationStats(populationStats, POPULATION_COMPARISON_TIER, myPick.championName);
+        session.personalVsPopulation = {
+          championName: myPick.championName,
+          tier: POPULATION_COMPARISON_TIER,
+          personal: personal.games > 0 ? personal : null,
+          population
+        };
+      }
 
       // Push to the dashboard window if it's open.
       if (dashboardWindow) {
