@@ -334,6 +334,72 @@
     text-align:center;
     letter-spacing: 0.5px;
   }
+  .stat-panel {
+    display: none; /* toggled to block via JS when there's data to show */
+    padding: 14px 18px;
+    margin-bottom: 24px;
+  }
+
+  .baseline-panel-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .baseline-champ-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    color: var(--gold-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .baseline-sample-note {
+    font-size: 11px;
+    color: var(--parchment-faint);
+    margin-top: 2px;
+  }
+  .baseline-stats-group {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+  .baseline-stat { text-align: center; }
+  .baseline-stat-label {
+    font-size: 10px;
+    color: var(--parchment-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .baseline-stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+  }
+  .baseline-stat-value.dim { color: var(--parchment-dim); }
+  .baseline-stat-value.pos { color: #7FD99B; }
+  .baseline-stat-value.neg { color: #E08A8A; }
+
+  .synergy-panel-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    color: var(--gold-bright);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .synergy-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .synergy-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .synergy-row .ally { color: var(--parchment); }
+  .synergy-row .wr.pos { color: #7FD99B; }
+  .synergy-row .wr.neg { color: #E08A8A; }
+  .synergy-row .no-data { color: var(--parchment-faint); font-style: italic; }
 </style>
 </head>
 <body>
@@ -352,28 +418,34 @@
     <span class="timer" id="turnTimer">--:--</span>
   </div>
 
-  <div class="frame" id="baselinePanel" style="display:none; padding:14px 18px; margin-bottom:24px;">
+  <div class="frame stat-panel" id="baselinePanel">
     <div class="corner-tr"></div><div class="corner-bl"></div>
-    <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div class="baseline-panel-row">
       <div>
-        <div style="font-family:'Oswald',sans-serif; font-size:15px; color:var(--gold-bright); text-transform:uppercase; letter-spacing:0.5px;" id="baselineChamp">—</div>
-        <div style="font-size:11px; color:var(--parchment-faint); margin-top:2px;" id="baselineSampleNote"></div>
+        <div class="baseline-champ-name" id="baselineChamp">—</div>
+        <div class="baseline-sample-note" id="baselineSampleNote"></div>
       </div>
-      <div style="display:flex; gap:24px; align-items:center;">
-        <div style="text-align:center;">
-          <div style="font-size:10px; color:var(--parchment-faint); text-transform:uppercase; letter-spacing:0.5px;">You</div>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:20px;" id="baselinePersonal">—</div>
+      <div class="baseline-stats-group">
+        <div class="baseline-stat">
+          <div class="baseline-stat-label">You</div>
+          <div class="baseline-stat-value" id="baselinePersonal">—</div>
         </div>
-        <div style="text-align:center;">
-          <div style="font-size:10px; color:var(--parchment-faint); text-transform:uppercase; letter-spacing:0.5px;" id="baselineTierLabel">Baseline</div>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:20px; color:var(--parchment-dim);" id="baselinePopulation">—</div>
+        <div class="baseline-stat">
+          <div class="baseline-stat-label" id="baselineTierLabel">Baseline</div>
+          <div class="baseline-stat-value dim" id="baselinePopulation">—</div>
         </div>
-        <div style="text-align:center;">
-          <div style="font-size:10px; color:var(--parchment-faint); text-transform:uppercase; letter-spacing:0.5px;">Delta</div>
-          <div style="font-family:'JetBrains Mono',monospace; font-size:20px;" id="baselineDelta">—</div>
+        <div class="baseline-stat">
+          <div class="baseline-stat-label">Delta</div>
+          <div class="baseline-stat-value" id="baselineDelta">—</div>
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="frame stat-panel" id="synergyPanel">
+    <div class="corner-tr"></div><div class="corner-bl"></div>
+    <div class="synergy-panel-title">Team synergy (population)</div>
+    <div id="synergyList" class="synergy-list"></div>
   </div>
 
   <div class="draft">
@@ -419,7 +491,6 @@
 <script>
   // Matchup stats now come from real personal match history via
   // session.matchupData, computed in main.js from lib/matchupStats.js.
-  // No more mock data here.
 
   // League doesn't assign a real lane for bots/enemy players in custom
   // games (assignedPosition comes back blank). This is a best-effort guess
@@ -485,12 +556,18 @@
       return;
     }
 
-    body.innerHTML = `<div class="matchup-grid">${stats.map((s) => `
+    body.innerHTML = `<div class="matchup-grid">${stats.map((s) => {
+      const popLine = s.populationMatchup
+        ? `<div class="stat-line"><span style="color:var(--parchment-faint);">Population</span><span style="color:var(--parchment-faint); font-family:'JetBrains Mono',monospace;">${s.populationMatchup.winRate}% (${s.populationMatchup.games}g)</span></div>`
+        : `<div class="stat-line"><span style="color:var(--parchment-faint);">Population</span><span style="color:var(--parchment-faint); font-style:italic;">no data yet</span></div>`;
+      return `
       <div class="matchup-card">
         <div class="champ">${s.champion}</div>
         <div class="stat-line"><span>Win rate</span><span class="value ${s.winRate >= 50 ? 'pos' : 'neg'}">${s.winRate}%</span></div>
         <div class="games">${s.wins}/${s.games} games</div>
-      </div>`).join('')}</div>`;
+        ${popLine}
+      </div>`;
+    }).join('')}</div>`;
   }
 
   function formatTime(totalSeconds) {
@@ -538,11 +615,10 @@
     if (comparison.personal && comparison.population) {
       const delta = Math.round((comparison.personal.winRate - comparison.population.winRate) * 10) / 10;
       deltaEl.textContent = `${delta >= 0 ? '+' : ''}${delta}%`;
-      deltaEl.className = delta >= 0 ? 'pos' : 'neg';
-      deltaEl.style.color = delta >= 0 ? '#7FD99B' : '#E08A8A';
+      deltaEl.className = 'baseline-stat-value ' + (delta >= 0 ? 'pos' : 'neg');
     } else {
       deltaEl.textContent = '—';
-      deltaEl.style.color = '';
+      deltaEl.className = 'baseline-stat-value';
     }
 
     // Low sample-size honesty: don't let a couple of games look authoritative.
@@ -551,6 +627,32 @@
     }
 
     sampleNote.textContent = notes.join(' · ');
+  }
+
+  function renderSynergyPanel(session) {
+    const panel = document.getElementById('synergyPanel');
+    const list = document.getElementById('synergyList');
+    const entries = session.synergyData || [];
+
+    if (entries.length === 0) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    panel.style.display = 'block';
+    list.innerHTML = entries.map((e) => {
+      if (e.synergy) {
+        const wr = e.synergy.winRate;
+        return `<div class="synergy-row">
+          <span class="ally">+ ${e.allyChampion}</span>
+          <span class="wr ${wr >= 50 ? 'pos' : 'neg'}">${wr}% (${e.synergy.games}g)</span>
+        </div>`;
+      }
+      return `<div class="synergy-row">
+        <span class="ally">+ ${e.allyChampion}</span>
+        <span class="no-data">no data yet</span>
+      </div>`;
+    }).join('');
   }
 
   function render(session) {
@@ -569,6 +671,7 @@
     renderBans('theirBans', session.bans.theirs);
     renderReport(session);
     renderBaselinePanel(session);
+    renderSynergyPanel(session);
   }
 
   function resetToIdle() {
@@ -584,6 +687,7 @@
     document.getElementById('reportMeta').textContent = 'Waiting for a pick...';
     document.getElementById('reportBody').innerHTML = '<div class="report-empty">No enemy champion picked yet.</div>';
     document.getElementById('baselinePanel').style.display = 'none';
+    document.getElementById('synergyPanel').style.display = 'none';
   }
 
   window.draftAPI.onSessionUpdate(render);

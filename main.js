@@ -15,7 +15,7 @@ const { startWatching } = require('./lib/watcher');
 const { championName } = require('./lib/championData');
 const { mapSession } = require('./lib/sessionMapper');
 const { getMatchupsAgainst, getMatchupStats } = require('./lib/matchupStats');
-const { getPopulationStats } = require('./lib/populationStats');
+const { getPopulationStats, getPopulationMatchupStats, getPopulationSynergyStats } = require('./lib/populationStats');
 
 // Which population tier to compare the local player against by default.
 // A future enhancement could detect the player's actual rank instead of
@@ -169,7 +169,9 @@ app.whenReady().then(() => {
       // Compute real personal matchup stats for every enemy champion
       // that's actually been picked so far. Keyed by champion name so the
       // UI can just do matchupData[championName] - same shape the old
-      // mock data used.
+      // mock data used. Also includes the population matchup number
+      // for each entry - how the population does in that exact
+      // matchup, not just the champion overall.
       const matchupData = {};
       for (const p of session.theirTeam) {
         if (p.championName && !matchupData[p.championName]) {
@@ -178,7 +180,13 @@ app.whenReady().then(() => {
             champion: s.myChampion,
             games: s.games,
             wins: s.wins,
-            winRate: s.winRate
+            winRate: s.winRate,
+            populationMatchup: getPopulationMatchupStats(
+              populationStats,
+              POPULATION_COMPARISON_TIER,
+              s.myChampion,
+              p.championName
+            )
           }));
         }
       }
@@ -188,6 +196,7 @@ app.whenReady().then(() => {
       // local player has actually picked (if any).
       const myPick = session.myTeam.find((p) => p.cellId === session.localPlayerCellId);
       session.personalVsPopulation = null;
+      session.synergyData = [];
       if (myPick && myPick.championName) {
         const personal = getMatchupStats(myMatches, { myChampion: myPick.championName });
         const population = getPopulationStats(populationStats, POPULATION_COMPARISON_TIER, myPick.championName);
@@ -197,6 +206,20 @@ app.whenReady().then(() => {
           personal: personal.games > 0 ? personal : null,
           population
         };
+
+        // population synergy between your pick and each already-picked ally.
+        const allies = session.myTeam.filter(
+          (p) => p.cellId !== session.localPlayerCellId && p.championName
+        );
+        session.synergyData = allies.map((ally) => ({
+          allyChampion: ally.championName,
+          synergy: getPopulationSynergyStats(
+            populationStats,
+            POPULATION_COMPARISON_TIER,
+            myPick.championName,
+            ally.championName
+          )
+        }));
       }
 
       // Push to the dashboard window if it's open.

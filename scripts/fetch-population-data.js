@@ -58,9 +58,13 @@ function saveState(state) {
 
 function loadStats() {
     if (fs.existsSync(outputPath)) {
-        return JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
+        const loaded = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
+        // Backward compatible: older data files won't have these yet.
+        if (!loaded.matchups) loaded.matchups = {};
+        if (!loaded.synergies) loaded.synergies = {};
+        return loaded;
     }
-    return { capturedAt: null, tiers: {} };
+    return { capturedAt: null, tiers: {}, matchups: {}, synergies: {} };
 }
 
 function saveStats(stats) {
@@ -77,7 +81,27 @@ function recordResult(stats, tier, championName, win) {
     if (win) stats.tiers[tier][championName].wins += 1;
 }
 
-// --- Step 1: collect seed players (known rank) for each tier bucket ---
+function recordMatchup(stats, tier, championName, enemyChampionName, win) {
+    if (!enemyChampionName) return;
+    if (!stats.matchups[tier]) stats.matchups[tier] = {};
+    if (!stats.matchups[tier][championName]) stats.matchups[tier][championName] = {};
+    if (!stats.matchups[tier][championName][enemyChampionName]) {
+        stats.matchups[tier][championName][enemyChampionName] = { games: 0, wins: 0 };
+    }
+    stats.matchups[tier][championName][enemyChampionName].games += 1;
+    if (win) stats.matchups[tier][championName][enemyChampionName].wins += 1;
+}
+
+function recordSynergy(stats, tier, championName, allyChampionName, win) {
+    if (!allyChampionName) return;
+    if (!stats.synergies[tier]) stats.synergies[tier] = {};
+    if (!stats.synergies[tier][championName]) stats.synergies[tier][championName] = {};
+    if (!stats.synergies[tier][championName][allyChampionName]) {
+        stats.synergies[tier][championName][allyChampionName] = { games: 0, wins: 0 };
+    }
+    stats.synergies[tier][championName][allyChampionName].games += 1;
+    if (win) stats.synergies[tier][championName][allyChampionName].wins += 1;
+}
 
 async function getSeedPlayersForDivisionGroup(tier, romanNumerals, count) {
     const perDivision = Math.ceil(count / romanNumerals.length);
@@ -127,8 +151,6 @@ async function getSeedPlayersForApexTiers(count) {
     return combined.slice(0, count);
 }
 
-// league-v4 entries may or may not include puuid directly depending on API
-// version - handle both cases rather than assuming.
 async function resolvePuuid(entry) {
     if (entry.puuid) return entry.puuid;
 
@@ -144,13 +166,6 @@ async function resolvePuuid(entry) {
         return null;
     }
 }
-
-// --- Step 2: for each seed player, fetch their games and count ONLY theirs ---
-//
-// This always re-checks each seed player (one cheap request), but only
-// counts NEW matches we haven't seen before. That means: run this today
-// with a target of 1, run it again next week with a target of 5, and it
-// tops up the same players with more games instead of starting over.
 
 async function processSeedPlayer(puuid, tierLabel, stats, state) {
     if (!state.playerGameCounts) state.playerGameCounts = {};
@@ -177,10 +192,26 @@ async function processSeedPlayer(puuid, tierLabel, stats, state) {
 
         try {
             const matchData = await riotRequest(`/lol/match/v5/matches/${matchId}`, REGION);
-            const me = matchData.info.participants.find((p) => p.puuid === puuid);
+            const participants = matchData.info.participants;
+            const me = participants.find((p) => p.puuid === puuid);
+
             if (me) {
                 recordResult(stats, tierLabel, me.championName, me.win);
                 state.playerGameCounts[puuid] = (state.playerGameCounts[puuid] || 0) + 1;
+
+                if (me.teamPosition) {
+                    const enemyLaner = participants.find(
+                        (p) => p.teamId !== me.teamId && p.teamPosition === me.teamPosition
+                    );
+                    if (enemyLaner) {
+                        recordMatchup(stats, tierLabel, me.championName, enemyLaner.championName, me.win);
+                    }
+                }
+
+                const allies = participants.filter((p) => p.teamId === me.teamId && p.puuid !== me.puuid);
+                for (const ally of allies) {
+                    recordSynergy(stats, tierLabel, me.championName, ally.championName, me.win);
+                }
             }
             state.seenMatchIds.push(matchId);
             await sleep(DELAY_MS);
@@ -262,6 +293,23 @@ async function processSeedPlayer(puuid, tierLabel, stats, state) {
             console.log(`  ${tier} - ${champion}: ${data.games} games`);
         }
     }
+
+    let matchupPairs = 0;
+    for (const champs of Object.values(stats.matchups)) {
+        for (const enemies of Object.values(champs)) {
+            matchupPairs += Object.keys(enemies).length;
+        }
+    }
+    let synergyPairs = 0;
+    for (const champs of Object.values(stats.synergies)) {
+        for (const allies of Object.values(champs)) {
+            synergyPairs += Object.keys(allies).length;
+        }
+    }
+    console.log(`\nMatchup pairs recorded: ${matchupPairs}`);
+    console.log(`Synergy pairs recorded: ${synergyPairs}`);
+    console.log(`(Note: these only include matches fetched since this feature was added)`);
+
     console.log(`\nTotal players logged (all time): ${state.seenPuuids.length}`);
     console.log(`Saved to data/population-stats.json`);
 })();

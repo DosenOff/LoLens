@@ -1,44 +1,80 @@
 # LoLens
 
-A real-time League of Legends draft companion. LoLens watches your live 
-champion select and surfaces your own match history against whoever's 
-being picked or banned — so you're seeing your actual win rate against 
-that Renekton, not generic tier-list advice.
+A real-time League of Legends draft companion. LoLens watches your live
+champion select and surfaces your own match history against whoever's
+being picked or banned — plus how that compares to a real, rank-specific
+population baseline. Not generic tier-list advice — your actual numbers,
+next to real ones.
 
 ![LoLens champion select screen](image.png)
 
 ## Status
 
-Early build. Champion select UI is running in an Electron shell with mock 
-data. Live LCU integration and Riot API match history are in progress.
+Core loop is working end-to-end: LoLens runs in the background, detects
+League launching, and tracks live champion select (picks, bans, timer,
+turn state). For any enemy pick, it shows your personal win rate against
+them, broken down by which of your champions you played. For your own
+pick, it shows your win rate next to a sampled population baseline
+(Emerald/Diamond/Master+) for that champion, that specific matchup, and
+synergy with your picked allies.
 
 ## How it works
 
-- **Electron** shell for the desktop app and UI
-- **League Client API (LCU)** — local, unofficial — for live champion 
+- **Electron** shell for the desktop app, tray icon, and corner overlay
+- **League Client API (LCU)** — local, unofficial — for live champion
   select state
-- **Riot Web API** — for historical match data and player statistics
+- **Riot Web API** — for personal match history, plus a sampled
+  rank-specific population baseline (built from Riot's own league/match
+  endpoints — no scraping, no third-party data)
+
+### A note on the population baseline
+
+This isn't Riot's own statistic — there isn't one. LoLens samples real
+players from specific rank tiers/divisions via `league-v4`, pulls their
+recent ranked matches, and counts *only that known-rank player's own
+game result* per match (not all 10 participants — the other 9 players'
+ranks aren't actually knowable from match data, so counting them would
+silently mislabel the sample). This means the numbers are a real but
+deliberately modest sample, not a comprehensive statistic — sample sizes
+are shown alongside every number so you can judge confidence yourself.
 
 ## Running it locally
 
-\```
+```
 npm install
+cp .env.example .env   # then fill in your Riot API key and Riot ID
 npm start
-\```
+```
+
+To pull your own match history for personal matchup stats:
+```
+npm run fetch-champion-data
+npm run fetch-match-ids
+npm run fetch-match-details
+```
+
+To build the population baseline (rerun anytime to grow the sample):
+```
+npm run fetch-population-data
+```
 
 ## Roadmap
 
-- [ ] Connect to live LCU champion select session
-- [ ] Pull real match history via Riot API
-- [ ] Show matchup-specific win rate / gold diff stats
+- [x] Connect to live LCU champion select session
+- [x] Pull real match history via Riot API
+- [x] Show matchup-specific win rate stats, live, in-app
+- [x] Rank-specific population baseline (Emerald/Diamond/Master+)
+- [x] Matchup-specific and team-synergy population comparisons
+- [ ] Gold differential @15 (requires match timeline data)
 - [ ] Packaged .app build
+- [ ] Auto-launch at system login (optional)
 
 ## Legal
 
-LoLens is not endorsed by Riot Games and does not reflect the views or 
-opinions of Riot Games or anyone officially involved in producing or 
-managing League of Legends. League of Legends and Riot Games are 
+LoLens is not endorsed by Riot Games and does not reflect the views or
+opinions of Riot Games or anyone officially involved in producing or
+managing League of Legends. League of Legends and Riot Games are
 trademarks or registered trademarks of Riot Games, Inc.
 
-The League Client API used here is unofficial and not supported by Riot 
+The League Client API used here is unofficial and not supported by Riot
 for third-party use.
