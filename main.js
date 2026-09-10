@@ -103,10 +103,17 @@ function showToast() {
   }, 2500);
 }
 
+// Overlay height starts in "list" mode and grows when a champion's detail
+// card is expanded (see the 'resize-overlay' IPC handler below) - keep
+// OVERLAY_WIDTH/OVERLAY_LIST_HEIGHT in sync with the constants of the same
+// name at the top of src/overlay.html's <script>.
+const OVERLAY_WIDTH = 320;
+const OVERLAY_LIST_HEIGHT = 258;
+
 function showOverlay() {
   if (overlayWindow) return overlayWindow;
 
-  const { x, y, width, height } = topLeftPosition(260, 195);
+  const { x, y, width, height } = topLeftPosition(OVERLAY_WIDTH, OVERLAY_LIST_HEIGHT);
   overlayWindow = new BrowserWindow({
     x, y, width, height,
     frame: false,
@@ -115,6 +122,13 @@ function showOverlay() {
     skipTaskbar: true,
     resizable: false,
     focusable: false,
+    hasShadow: false,
+    // roundedCorners is a Windows-only option (no-op elsewhere) - harmless
+    // to set everywhere. On macOS, frameless/transparent windows get a
+    // compositor-level rounded corner that can't be disabled from the app
+    // side; overlay.html insets its visible gold frame by a few px so that
+    // rounding doesn't visibly clip the corner brackets instead.
+    roundedCorners: false,
     webPreferences: {
       preload: path.join(__dirname, 'overlay-preload.js'),
       contextIsolation: true,
@@ -226,17 +240,37 @@ app.whenReady().then(() => {
 
       // Champion pool recommendations - ranks the user's pool for the
       // current draft state using the transparent formula in lib/recommendations.js.
-      const enemyPick = session.theirTeam.find((p) => p.championName);
-      const currentAllies = session.myTeam
+      // Each pick is tagged with its assigned position so the UI can label
+      // counter/synergy rows (e.g. "JG", "MID") instead of just a name.
+      const currentEnemyPicks = session.theirTeam
+        .filter((p) => p.championName)
+        .map((p) => ({ championName: p.championName, position: p.position }));
+      const currentAllyPicks = session.myTeam
         .filter((p) => p.cellId !== session.localPlayerCellId && p.championName)
-        .map((p) => p.championName);
+        .map((p) => ({ championName: p.championName, position: p.position }));
 
-      session.recommendations = getPoolRecommendations(userConfig.championPool, {
+      // A champion already locked in (by either team) or banned can't be
+      // picked - don't recommend it. Filtering the pool before scoring
+      // (rather than after) also avoids wasted lookups for champs that
+      // can't be selected anyway.
+      const unavailableChampions = new Set(
+        [
+          ...session.myTeam.map((p) => p.championName),
+          ...session.theirTeam.map((p) => p.championName),
+          ...session.bans.mine,
+          ...session.bans.theirs
+        ].filter(Boolean)
+      );
+      const availablePool = userConfig.championPool.filter(
+        (champion) => !unavailableChampions.has(champion)
+      );
+
+      session.recommendations = getPoolRecommendations(availablePool, {
         myMatches,
         populationStats,
         tier: userConfig.populationTier,
-        enemyChampion: enemyPick ? enemyPick.championName : null,
-        allyChampions: currentAllies
+        enemyChampions: currentEnemyPicks,
+        allyChampions: currentAllyPicks
       });
       session.populationTier = userConfig.populationTier; // so the UI can show/edit current tier
 
@@ -288,3 +322,17 @@ ipcMain.on('update-settings', (event, updates) => {
 
 // Renderer asks for current settings when the dashboard first opens.
 ipcMain.handle('get-settings', () => userConfig);
+
+// Overlay -> main: grow/shrink the overlay window to exactly fit its
+// content when toggling between the compact "top picks" list and an
+// expanded champion detail card. Only clamps against the screen's visible
+// work area (so the window can't render off-screen) - not an arbitrary
+// content cap, since overlay.html sizes itself to fit everything with no
+// internal scrolling.
+ipcMain.on('resize-overlay', (event, height) => {
+  if (!overlayWindow) return;
+  const { workAreaSize } = screen.getPrimaryDisplay();
+  const maxHeight = workAreaSize.height - CORNER_MARGIN * 2;
+  const clamped = Math.max(80, Math.min(maxHeight, Math.round(height)));
+  overlayWindow.setSize(OVERLAY_WIDTH, clamped);
+});

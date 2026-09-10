@@ -3,170 +3,568 @@
 
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --navy-deep: #0A0E14;
+            --navy: #0A1428;
+            --navy-panel: #0F1B33;
+            --gold: #C89B3C;
+            --gold-bright: #F0C75E;
+            --gold-dim: rgba(200, 155, 60, 0.3);
+            --parchment: #F0E6D2;
+            --parchment-dim: #A09B8C;
+            --parchment-faint: #5A5648;
+            --green: #7FD99B;
+            --red: #E08A8A;
+        }
+
         html,
         body {
             margin: 0;
             padding: 0;
+            width: 100%;
+            height: 100%;
             background: transparent;
             overflow: hidden;
             font-family: 'Oswald', 'Segoe UI', sans-serif;
-            color: #F0E6D2;
+            color: var(--parchment);
+            -webkit-app-region: no-drag;
         }
 
-        .card {
-            width: 100%;
-            height: 100%;
+        /* macOS applies a compositor-level rounded corner to frameless/
+           transparent BrowserWindows that can't be turned off from the app
+           side. Instead of drawing the gold frame flush with the window
+           edge (where it would get visibly clipped by that rounding), it's
+           inset a few px on all sides so the corner brackets always render
+           fully intact regardless of the native window shape. */
+        .inset {
             box-sizing: border-box;
-            background: linear-gradient(160deg, #0F1B33, #0A1428);
-            border: 1px solid #C89B3C;
-            border-radius: 4px;
-            padding: 12px 14px;
+            width: 100%;
+            padding: 5px;
+        }
+
+        .frame {
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+            background: linear-gradient(160deg, var(--navy-panel) 0%, var(--navy) 100%);
+            border: 1px solid var(--gold-dim);
+            padding: 16px 18px;
+        }
+
+        .frame::before,
+        .frame::after,
+        .frame .corner-tr,
+        .frame .corner-bl {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border: 1.5px solid var(--gold);
+            pointer-events: none;
+        }
+
+        .frame::before {
+            top: -1px;
+            left: -1px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .frame::after {
+            bottom: -1px;
+            right: -1px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .frame .corner-tr {
+            top: -1px;
+            right: -1px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .frame .corner-bl {
+            bottom: -1px;
+            left: -1px;
+            border-right: none;
+            border-top: none;
         }
 
         .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .header .title {
+            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--gold-bright);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: none;
+            border: none;
+            color: var(--gold-bright);
+            font-family: 'Oswald', 'Segoe UI', sans-serif;
             font-size: 12px;
             letter-spacing: 1px;
             text-transform: uppercase;
-            color: #C89B3C;
-            border-bottom: 1px solid rgba(200, 155, 60, 0.3);
-            padding-bottom: 6px;
-            margin-bottom: 8px;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .header .timer {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--gold-bright);
+            flex-shrink: 0;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--gold-dim);
+            margin: 10px 0 8px;
+        }
+
+        .subtitle {
+            font-family: 'Spectral', serif;
+            font-size: 12px;
+            color: var(--parchment-dim);
+            margin-bottom: 10px;
+        }
+
+        .subtitle .cap {
+            text-transform: capitalize;
+        }
+
+        /* ---- list view ---- */
+
+        .rows {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
         }
 
         .row {
             display: flex;
-            justify-content: space-between;
-            font-size: 12px;
-            padding: 3px 0;
-            color: #A09B8C;
+            align-items: center;
+            gap: 9px;
+            padding: 7px 0;
         }
 
-        .row .champ {
-            color: #F0E6D2;
+        .row + .row {
+            border-top: 1px solid rgba(200, 155, 60, 0.12);
         }
 
-        .row .value.pos {
-            color: #7FD99B;
+        .rank {
+            width: 14px;
+            flex-shrink: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--parchment-faint);
         }
 
-        .row .value.neg {
-            color: #E08A8A;
+        .portrait {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+            background: linear-gradient(160deg, #2A3B5C, #16243F);
+            border: 1px solid var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+            color: var(--gold-bright);
         }
 
-        .empty {
-            font-size: 12px;
-            color: #5A5648;
-            font-style: italic;
-        }
-
-        #baseline {
+        .name {
+            flex: 1;
+            min-width: 0;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--parchment);
             white-space: nowrap;
             overflow: hidden;
-            font-size: 11px;
-            padding: 6px 0;
-            margin-bottom: 6px;
-            border-bottom: 1px solid rgba(200, 155, 60, 0.2);
-            color: #A09B8C;
+            text-overflow: ellipsis;
+        }
+
+        .score {
+            flex-shrink: 0;
             font-family: 'JetBrains Mono', monospace;
-        }
-
-        #baseline .champ {
-            color: #F0E6D2;
+            font-size: 13px;
             font-weight: 500;
-            font-family: 'Oswald', sans-serif;
         }
 
-        #baseline .pos {
-            color: #7FD99B;
+        .score.pos { color: var(--green); }
+        .score.neg { color: var(--red); }
+
+        .expand-btn {
+            flex-shrink: 0;
+            background: none;
+            border: none;
+            color: var(--parchment-faint);
+            font-size: 12px;
+            cursor: pointer;
+            padding: 2px 0 2px 4px;
+            line-height: 1;
         }
 
-        #baseline .neg {
-            color: #E08A8A;
+        .expand-btn:hover { color: var(--gold-bright); }
+
+        .empty {
+            font-family: 'Spectral', serif;
+            font-size: 12px;
+            font-style: italic;
+            color: var(--parchment-faint);
+            padding: 8px 0;
+        }
+
+        /* ---- detail view ---- */
+
+        .detail-champ-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0 12px;
+        }
+
+        .detail-champ-row .portrait {
+            width: 36px;
+            height: 36px;
+            font-size: 11px;
+        }
+
+        .detail-champ-name {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--parchment);
+        }
+
+        .rating-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px 14px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(200, 155, 60, 0.15);
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--parchment-faint);
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--parchment);
+            margin-top: 2px;
+        }
+
+        .stat-value.pos { color: var(--green); }
+        .stat-value.neg { color: var(--red); }
+        .stat-value.dim { color: var(--parchment-dim); }
+
+        .formula-note {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+            line-height: 1.5;
+            color: var(--parchment-faint);
+            margin-bottom: 14px;
+        }
+
+        .section-title {
+            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--gold-bright);
+            border-bottom: 1px solid rgba(200, 155, 60, 0.25);
+            padding-bottom: 5px;
+            margin: 14px 0 6px;
+        }
+
+        .section-title:first-of-type { margin-top: 0; }
+
+        .detail-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            font-size: 12px;
+        }
+
+        .detail-row .pos-tag {
+            width: 30px;
+            flex-shrink: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--parchment-faint);
+            text-transform: uppercase;
+        }
+
+        .detail-row .champ-name {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--parchment);
+        }
+
+        .detail-row .wr {
+            flex-shrink: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+
+        .detail-row .wr.pos { color: var(--green); }
+        .detail-row .wr.neg { color: var(--red); }
+
+        .detail-row .n {
+            flex-shrink: 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--parchment-faint);
+            width: 66px;
+            text-align: right;
         }
     </style>
 </head>
 
 <body>
-    <div class="card">
-        <div class="header">
-            <span id="phase">Champ select</span>
-            <span id="timer"></span>
-        </div>
-        <div id="baseline"></div>
-        <div id="body">
-            <div class="empty">Waiting for a pick...</div>
+    <div class="inset" id="insetWrap">
+        <div class="frame" id="frame">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+
+            <div class="header">
+                <span class="title" id="headerTitle">Champ select</span>
+                <span class="timer" id="timer">--:--</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div id="content"></div>
         </div>
     </div>
 
     <script>
-        // Matchup stats and the personal-vs-population baseline both come from
-        // real data computed in main.js (lib/matchupStats.js, lib/populationStats.js).
+        // Keep in sync with OVERLAY_WIDTH in main.js.
+        const MIN_HEIGHT = 120;
 
-        // Shrinks font-size on an element until its content fits on one line
-        // (or hits minPx, whichever comes first - long names just get small
-        // rather than wrapping or breaking the layout).
-        function fitOneLine(el, maxPx = 11, minPx = 8) {
-            let size = maxPx;
-            el.style.fontSize = size + 'px';
-            while (el.scrollWidth > el.clientWidth && size > minPx) {
-                size -= 0.5;
-                el.style.fontSize = size + 'px';
+        const POSITION_LABELS = { top: 'top', jungle: 'jungle', middle: 'mid', bottom: 'bottom', utility: 'support' };
+        const SHORT_POSITION_LABELS = { top: 'TOP', jungle: 'JG', middle: 'MID', bottom: 'BOT', utility: 'SUP' };
+        const LOW_SAMPLE_THRESHOLD = 200;
+
+        let lastSession = null;
+        let view = 'list'; // 'list' | 'detail'
+        let expandedChampion = null;
+
+        function abbreviate(name) {
+            return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
+        }
+
+        function formatTime(totalSeconds) {
+            const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const s = String(totalSeconds % 60).padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function posLabel(position, map) {
+            if (!position) return '—';
+            const key = position.toLowerCase();
+            return map[key] || position;
+        }
+
+        function resize(height) {
+            if (window.overlayAPI && window.overlayAPI.resize) {
+                window.overlayAPI.resize(height);
             }
         }
 
-        function renderBaseline(session) {
-            const el = document.getElementById('baseline');
-            const comparison = session.personalVsPopulation;
+        // Measures the actual rendered content height and resizes the
+        // window to match exactly - no cap, no internal scrolling. .frame
+        // and .inset are height:auto (content-driven, not 100%-of-window),
+        // so this reflects what the content really needs rather than
+        // whatever the window's current/stale size happens to be.
+        // main.js only clamps against the screen's work area so the
+        // window can't render off-screen - that's a display-safety bound,
+        // not a content cap.
+        function fitToContent() {
+            requestAnimationFrame(() => {
+                const insetWrap = document.getElementById('insetWrap');
+                const natural = Math.ceil(insetWrap.getBoundingClientRect().height) + 1; // +1px rounding safety
+                resize(Math.max(MIN_HEIGHT, natural));
+            });
+        }
 
-            if (!comparison) {
-                el.innerHTML = '';
+        // ---- list view ----
+
+        function renderList(session) {
+            document.getElementById('headerTitle').textContent = 'Champ select';
+
+            const myPick = (session.myTeam || []).find((p) => p.cellId === session.localPlayerCellId);
+            const posKey = myPick && myPick.position ? myPick.position.toLowerCase() : null;
+            const posText = posKey ? (POSITION_LABELS[posKey] || posKey) : 'unassigned';
+
+            const recs = (session.recommendations || []).slice(0, 3);
+
+            let rowsHtml;
+            if (recs.length === 0) {
+                rowsHtml = '<div class="empty">No pool recommendations yet</div>';
+            } else {
+                rowsHtml = recs.map((r, i) => {
+                    const cls = r.score >= 50 ? 'pos' : 'neg';
+                    return `
+        <div class="row">
+            <span class="rank">${i + 1}</span>
+            <span class="portrait">${abbreviate(r.champion)}</span>
+            <span class="name">${r.champion}</span>
+            <span class="score ${cls}">${r.score}%</span>
+            <button class="expand-btn" data-champ="${r.champion}" aria-label="Show breakdown for ${r.champion}">&#9656;</button>
+        </div>`;
+                }).join('');
+            }
+
+            document.getElementById('content').innerHTML = `
+        <div class="subtitle"><span class="cap">Top picks</span> &middot; <span>${posText}</span></div>
+        <div class="rows">${rowsHtml}</div>
+      `;
+
+            document.querySelectorAll('.expand-btn').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    expandedChampion = btn.dataset.champ;
+                    view = 'detail';
+                    renderCurrent();
+                });
+            });
+
+            fitToContent();
+        }
+
+        function renderDetail(session) {
+            const rec = (session.recommendations || []).find((r) => r.champion === expandedChampion);
+
+            // Champion fell out of the recommendation list (e.g. it just got
+            // picked/banned) - fall back to the list rather than show stale data.
+            if (!rec) {
+                view = 'list';
+                renderList(session);
                 return;
             }
 
-            const you = comparison.personal ? `${comparison.personal.winRate}%` : '—';
-            const pop = comparison.population ? `${comparison.population.winRate}%` : '—';
-            let deltaHtml = '—';
-            if (comparison.personal && comparison.population) {
-                const delta = Math.round((comparison.personal.winRate - comparison.population.winRate) * 10) / 10;
-                const cls = delta >= 0 ? 'pos' : 'neg';
-                deltaHtml = `<span class="${cls}">${delta >= 0 ? '+' : ''}${delta}%</span>`;
-            }
+            document.getElementById('headerTitle').innerHTML =
+                '<button class="back-btn" id="backBtn">&#9666; Back</button>';
 
-            el.innerHTML = `<span class="champ">${comparison.championName}</span> · You ${you} · ${comparison.tier} ${pop} · ${deltaHtml}`;
-            fitOneLine(el);
+            const b = rec.breakdown;
+
+            const statCell = (label, value, cls) => `
+        <div>
+          <div class="stat-label">${label}</div>
+          <div class="stat-value ${cls || ''}">${value}</div>
+        </div>`;
+
+            const deltaCell = (label, delta) => {
+                if (delta === null) return statCell(label, '—', 'dim');
+                const cls = delta > 0 ? 'pos' : delta < 0 ? 'neg' : 'dim';
+                const sign = delta > 0 ? '+' : '';
+                return statCell(label, `${sign}${delta}%`, cls);
+            };
+
+            const ratingGrid = [
+                statCell('Rating', `${rec.score}%`, rec.score >= 50 ? 'pos' : 'neg'),
+                statCell('Base WR', b.baseline ? `${b.baseline.winRate}%` : '—', 'dim'),
+                b.personalDelta !== null ? deltaCell('Personal Δ', b.personalDelta) : null,
+                deltaCell('Synergy Δ', b.synergyDelta),
+                deltaCell('Counter Δ', b.matchupDelta),
+                deltaCell('Total Δ', b.totalDelta)
+            ].filter(Boolean).join('');
+
+            const detailRow = (entry, shortMap) => {
+                const cls = entry.winRate >= 50 ? 'pos' : 'neg';
+                const lowSample = entry.games < LOW_SAMPLE_THRESHOLD ? '&#9888; ' : '';
+                return `
+        <div class="detail-row">
+            <span class="pos-tag">${posLabel(entry.position, shortMap)}</span>
+            <span class="champ-name">${entry.championName}</span>
+            <span class="wr ${cls}">${entry.winRate}%</span>
+            <span class="n">${lowSample}n=${entry.games.toLocaleString()}</span>
+        </div>`;
+            };
+
+            const synergySection = `
+        <div class="section-title">Ally synergy</div>
+        ${b.synergyList.length > 0
+                    ? b.synergyList.map((e) => detailRow(e, SHORT_POSITION_LABELS)).join('')
+                    : '<div class="empty">No allies picked yet</div>'}
+      `;
+
+            const counterSection = `
+        <div class="section-title">Enemy counter</div>
+        ${b.matchupList.length > 0
+                    ? b.matchupList.map((e) => detailRow(e, SHORT_POSITION_LABELS)).join('')
+                    : '<div class="empty">No enemy picks yet</div>'}
+      `;
+
+            document.getElementById('content').innerHTML = `
+        <div class="detail-champ-row">
+          <span class="portrait">${abbreviate(rec.champion)}</span>
+          <span class="detail-champ-name">${rec.champion}</span>
+        </div>
+        <div class="rating-grid">${ratingGrid}</div>
+        <div class="formula-note">Rating = Base WR + Personal Δ + Counter Δ + Synergy Δ<br>(each term only counted when real data supports it)</div>
+        ${synergySection}
+        ${counterSection}
+      `;
+
+            document.getElementById('backBtn').addEventListener('click', () => {
+                view = 'list';
+                expandedChampion = null;
+                renderCurrent();
+            });
+
+            fitToContent();
+        }
+
+        function renderCurrent() {
+            if (!lastSession) return;
+            if (view === 'detail' && expandedChampion) {
+                renderDetail(lastSession);
+            } else {
+                renderList(lastSession);
+            }
         }
 
         function render(session) {
-            document.getElementById('timer').textContent = session.timeLeftSeconds + 's';
-            renderBaseline(session);
-
-            const enemyPick = session.theirTeam.find((p) => p.championName);
-            const body = document.getElementById('body');
-
-            if (!enemyPick) {
-                body.innerHTML = '<div class="empty">Waiting for a pick...</div>';
-                return;
-            }
-
-            const stats = session.matchupData?.[enemyPick.championName];
-            if (!stats || stats.length === 0) {
-                body.innerHTML = `<div class="empty">No recorded games vs ${enemyPick.championName} yet</div>`;
-                return;
-            }
-
-            body.innerHTML = stats.map(s => `
-        <div class="row">
-            <span class="champ">${s.champion}</span>
-            <span class="value ${s.winRate >= 50 ? 'pos' : 'neg'}">${s.winRate}% · ${s.games}g</span>
-        </div>
-    `).join('');
+            lastSession = session;
+            document.getElementById('timer').textContent = formatTime(session.timeLeftSeconds);
+            renderCurrent();
         }
 
         if (!window.overlayAPI) {
-            document.getElementById('body').innerHTML =
+            document.getElementById('content').innerHTML =
                 '<div class="empty">overlayAPI not available — check overlay-preload.js path/placement</div>';
         } else {
             window.overlayAPI.onUpdate(render);
