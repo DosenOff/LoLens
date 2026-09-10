@@ -25,18 +25,32 @@ const path = require('path');
         );
         const champData = await champRes.json();
 
-        // champData.data is keyed by champion name (e.g. "Aatrox"), each entry
-        // has a numeric "key" field which is the championID the LCU uses.
-        // We want the reverse: championId -> readable name.
+        // champData.data is keyed by the champion's internal Data Dragon id
+        // (e.g. "MonkeyKing" for Wukong) - NOT always the same as the
+        // display name. Each entry has:
+        //   .key  -> numeric championId, what the LCU uses (e.g. "62")
+        //   .name -> display name, what match/population data is NOT keyed
+        //            by (e.g. "Wukong")
+        //   .id   -> Data Dragon id, what match/population data IS keyed by
+        //            (Riot's match-v5 championName field), and what square
+        //            icon filenames use: /img/champion/{id}.png
+        // idToName: championId -> display name, for readable UI text.
+        // nameToId: display name -> Data Dragon id, for building icon URLs
+        // and for reconciling live champ-select picks (LCU only gives us
+        // the display name via idToName) with match/population data (keyed
+        // by id). The two differ for ~15-20 champs (Wukong/MonkeyKing,
+        // Renata Glasc/Renata, Nunu & Willump/Nunu, Kai'Sa/Kaisa, etc).
         const idToName = {};
-        for (const champName of Object.keys(champData.data)) {
-            const champ = champData.data[champName];
+        const nameToId = {};
+        for (const champKey of Object.keys(champData.data)) {
+            const champ = champData.data[champKey];
             idToName[champ.key] = champ.name;   // key is a string like "266"
+            nameToId[champ.name] = champ.id;
         }
 
         const outPath = path.join(__dirname, '..', "assets", 'champions.json');
         fs.mkdirSync(path.dirname(outPath), { recursive: true });
-        fs.writeFileSync(outPath, JSON.stringify({ version: latest, idToName }, null, 2));
+        fs.writeFileSync(outPath, JSON.stringify({ version: latest, idToName, nameToId }, null, 2));
 
         console.log(`\nSaved ${Object.keys(idToName).length} champions to assets/champions.json`);
     } catch (err) {

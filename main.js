@@ -12,7 +12,7 @@ const { app, BrowserWindow, Tray, Menu, screen, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { startWatching } = require('./lib/watcher');
-const { championName } = require('./lib/championData');
+const { championName, championIconUrl } = require('./lib/championData');
 const { mapSession } = require('./lib/sessionMapper');
 const { getMatchupsAgainst, getMatchupStats } = require('./lib/matchupStats');
 const { getPopulationStats, getPopulationMatchupStats, getPopulationSynergyStats } = require('./lib/populationStats');
@@ -271,7 +271,15 @@ app.whenReady().then(() => {
         tier: userConfig.populationTier,
         enemyChampions: currentEnemyPicks,
         allyChampions: currentAllyPicks
-      });
+      }).map((r) => ({
+        ...r,
+        iconUrl: championIconUrl(r.champion),
+        breakdown: {
+          ...r.breakdown,
+          matchupList: r.breakdown.matchupList.map((m) => ({ ...m, iconUrl: championIconUrl(m.championName) })),
+          synergyList: r.breakdown.synergyList.map((s) => ({ ...s, iconUrl: championIconUrl(s.championName) }))
+        }
+      }));
       session.populationTier = userConfig.populationTier; // so the UI can show/edit current tier
 
       // Push to the dashboard window if it's open.

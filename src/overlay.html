@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --navy-deep: #0A0E14;
@@ -166,7 +168,7 @@
             padding: 7px 0;
         }
 
-        .row + .row {
+        .row+.row {
             border-top: 1px solid rgba(200, 155, 60, 0.12);
         }
 
@@ -191,6 +193,14 @@
             font-size: 9px;
             letter-spacing: 0.5px;
             color: var(--gold-bright);
+            overflow: hidden;
+        }
+
+        .portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
 
         .name {
@@ -211,8 +221,13 @@
             font-weight: 500;
         }
 
-        .score.pos { color: var(--green); }
-        .score.neg { color: var(--red); }
+        .score.pos {
+            color: var(--green);
+        }
+
+        .score.neg {
+            color: var(--red);
+        }
 
         .expand-btn {
             flex-shrink: 0;
@@ -225,7 +240,9 @@
             line-height: 1;
         }
 
-        .expand-btn:hover { color: var(--gold-bright); }
+        .expand-btn:hover {
+            color: var(--gold-bright);
+        }
 
         .empty {
             font-family: 'Spectral', serif;
@@ -282,9 +299,17 @@
             margin-top: 2px;
         }
 
-        .stat-value.pos { color: var(--green); }
-        .stat-value.neg { color: var(--red); }
-        .stat-value.dim { color: var(--parchment-dim); }
+        .stat-value.pos {
+            color: var(--green);
+        }
+
+        .stat-value.neg {
+            color: var(--red);
+        }
+
+        .stat-value.dim {
+            color: var(--parchment-dim);
+        }
 
         .formula-note {
             font-family: 'JetBrains Mono', monospace;
@@ -305,7 +330,9 @@
             margin: 14px 0 6px;
         }
 
-        .section-title:first-of-type { margin-top: 0; }
+        .section-title:first-of-type {
+            margin-top: 0;
+        }
 
         .detail-row {
             display: flex;
@@ -313,6 +340,12 @@
             gap: 8px;
             padding: 5px 0;
             font-size: 12px;
+        }
+
+        .detail-row .portrait {
+            width: 20px;
+            height: 20px;
+            font-size: 7px;
         }
 
         .detail-row .pos-tag {
@@ -339,8 +372,13 @@
             font-weight: 500;
         }
 
-        .detail-row .wr.pos { color: var(--green); }
-        .detail-row .wr.neg { color: var(--red); }
+        .detail-row .wr.pos {
+            color: var(--green);
+        }
+
+        .detail-row .wr.neg {
+            color: var(--red);
+        }
 
         .detail-row .n {
             flex-shrink: 0;
@@ -384,6 +422,29 @@
 
         function abbreviate(name) {
             return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
+        }
+
+        // Builds a portrait chip: a real Data Dragon icon when iconUrl is
+        // available, otherwise the 3-letter abbreviation chip as before.
+        // If the icon URL 404s (unresolved id, e.g. for special-case names
+        // before nameToId has been populated), wirePortraitFallbacks()
+        // below swaps it back to the abbreviation on load error.
+        function portraitHtml(name, iconUrl, extraClass) {
+            const cls = 'portrait' + (extraClass ? ' ' + extraClass : '');
+            if (iconUrl) {
+                return `<span class="${cls}"><img src="${iconUrl}" alt="${name}" data-fallback="${abbreviate(name)}"></span>`;
+            }
+            return `<span class="${cls}">${abbreviate(name)}</span>`;
+        }
+
+        // Swaps any portrait <img> that failed to load back to its text
+        // abbreviation. Call once after each innerHTML render.
+        function wirePortraitFallbacks() {
+            document.querySelectorAll('.portrait img').forEach((img) => {
+                img.addEventListener('error', () => {
+                    img.parentElement.textContent = img.dataset.fallback;
+                }, { once: true });
+            });
         }
 
         function formatTime(totalSeconds) {
@@ -440,7 +501,7 @@
                     return `
         <div class="row">
             <span class="rank">${i + 1}</span>
-            <span class="portrait">${abbreviate(r.champion)}</span>
+            ${portraitHtml(r.champion, r.iconUrl)}
             <span class="name">${r.champion}</span>
             <span class="score ${cls}">${r.score}%</span>
             <button class="expand-btn" data-champ="${r.champion}" aria-label="Show breakdown for ${r.champion}">&#9656;</button>
@@ -461,6 +522,7 @@
                 });
             });
 
+            wirePortraitFallbacks();
             fitToContent();
         }
 
@@ -507,6 +569,7 @@
                 const lowSample = entry.games < LOW_SAMPLE_THRESHOLD ? '&#9888; ' : '';
                 return `
         <div class="detail-row">
+            ${portraitHtml(entry.championName, entry.iconUrl)}
             <span class="pos-tag">${posLabel(entry.position, shortMap)}</span>
             <span class="champ-name">${entry.championName}</span>
             <span class="wr ${cls}">${entry.winRate}%</span>
@@ -518,26 +581,23 @@
         <div class="section-title">Ally synergy</div>
         ${b.synergyList.length > 0
                     ? b.synergyList.map((e) => detailRow(e, SHORT_POSITION_LABELS)).join('')
-                    : '<div class="empty">No allies picked yet</div>'}
-      `;
+                    : '<div class="empty">No allies picked yet</div>'}`;
 
             const counterSection = `
         <div class="section-title">Enemy counter</div>
         ${b.matchupList.length > 0
                     ? b.matchupList.map((e) => detailRow(e, SHORT_POSITION_LABELS)).join('')
-                    : '<div class="empty">No enemy picks yet</div>'}
-      `;
+                    : '<div class="empty">No enemy picks yet</div>'}`;
 
             document.getElementById('content').innerHTML = `
         <div class="detail-champ-row">
-          <span class="portrait">${abbreviate(rec.champion)}</span>
-          <span class="detail-champ-name">${rec.champion}</span>
+        ${portraitHtml(rec.champion, rec.iconUrl)}
+        <span class="detail-champ-name">${rec.champion}</span>
         </div>
         <div class="rating-grid">${ratingGrid}</div>
         <div class="formula-note">Rating = Base WR + Personal Δ + Counter Δ + Synergy Δ<br>(each term only counted when real data supports it)</div>
         ${synergySection}
-        ${counterSection}
-      `;
+        ${counterSection}`;
 
             document.getElementById('backBtn').addEventListener('click', () => {
                 view = 'list';
@@ -545,6 +605,7 @@
                 renderCurrent();
             });
 
+            wirePortraitFallbacks();
             fitToContent();
         }
 
