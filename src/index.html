@@ -410,12 +410,48 @@
       <h1>Draft Intel</h1>
       <div class="subtitle">Live champion select &amp; historical matchup analysis</div>
     </div>
-    <div class="status" id="status"><span class="dot"></span><span id="statusText">Waiting for League...</span></div>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <button id="settingsToggle" style="background:none; border:1px solid var(--gold-dim); color:var(--parchment-dim); font-family:'JetBrains Mono',monospace; font-size:11px; padding:6px 12px; cursor:pointer; letter-spacing:0.5px;">SETTINGS</button>
+      <div class="status" id="status"><span class="dot"></span><span id="statusText">Waiting for League...</span></div>
+    </div>
+  </div>
+
+  <div class="frame" id="settingsPanel" style="padding:16px 18px; margin-bottom:24px;">
+    <div class="corner-tr"></div><div class="corner-bl"></div>
+    <div style="font-family:'Oswald',sans-serif; font-size:13px; color:var(--gold-bright); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">Settings</div>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block; font-size:11px; color:var(--parchment-faint); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Champion pool (comma-separated)</label>
+      <input id="poolInput" type="text" placeholder="Jinx, Taliyah, Yone, Ahri..."
+        style="width:100%; box-sizing:border-box; background:rgba(0,0,0,0.3); border:1px solid var(--gold-dim); color:var(--parchment); padding:8px 10px; font-family:'JetBrains Mono',monospace; font-size:12px;">
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="display:block; font-size:11px; color:var(--parchment-faint); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Compare against rank</label>
+      <select id="tierSelect" style="background:rgba(0,0,0,0.3); border:1px solid var(--gold-dim); color:var(--parchment); padding:8px 10px; font-family:'JetBrains Mono',monospace; font-size:12px;">
+        <option value="EMERALD">Emerald (III/IV)</option>
+        <option value="EMERALD+">Emerald+ (I/II)</option>
+        <option value="DIAMOND">Diamond (III/IV)</option>
+        <option value="DIAMOND+">Diamond+ (I/II)</option>
+        <option value="MASTER_PLUS">Master+</option>
+      </select>
+    </div>
+
+    <button id="settingsSave" style="background:var(--gold); border:none; color:var(--navy-deep); font-family:'Oswald',sans-serif; font-weight:600; font-size:12px; padding:8px 20px; cursor:pointer; text-transform:uppercase; letter-spacing:0.5px;">Save</button>
+    <span id="settingsSavedNote" style="margin-left:12px; font-size:11px; color:#7FD99B; opacity:0;">Saved</span>
   </div>
 
   <div class="turn-banner">
     <span class="label" id="turnLabel">Not in champion select</span>
     <span class="timer" id="turnTimer">--:--</span>
+  </div>
+
+  <div class="frame stat-panel" id="recommendationsPanel">
+    <div class="corner-tr"></div><div class="corner-bl"></div>
+    <div style="font-family:'Oswald',sans-serif; font-size:13px; color:var(--gold-bright); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">
+      Recommended from your pool <span id="recTierNote" style="color:var(--parchment-faint); font-size:11px; text-transform:none; letter-spacing:normal;"></span>
+    </div>
+    <div id="recommendationsList" style="display:flex; flex-direction:column; gap:8px;"></div>
   </div>
 
   <div class="frame stat-panel" id="baselinePanel">
@@ -491,6 +527,7 @@
 <script>
   // Matchup stats now come from real personal match history via
   // session.matchupData, computed in main.js from lib/matchupStats.js.
+  // No more mock data here.
 
   // League doesn't assign a real lane for bots/enemy players in custom
   // games (assignedPosition comes back blank). This is a best-effort guess
@@ -672,6 +709,7 @@
     renderReport(session);
     renderBaselinePanel(session);
     renderSynergyPanel(session);
+    renderRecommendations(session);
   }
 
   function resetToIdle() {
@@ -688,7 +726,76 @@
     document.getElementById('reportBody').innerHTML = '<div class="report-empty">No enemy champion picked yet.</div>';
     document.getElementById('baselinePanel').style.display = 'none';
     document.getElementById('synergyPanel').style.display = 'none';
+    document.getElementById('recommendationsPanel').style.display = 'none';
   }
+
+  const TIER_LABELS = {
+    EMERALD: 'Emerald',
+    'EMERALD+': 'Emerald+',
+    DIAMOND: 'Diamond',
+    'DIAMOND+': 'Diamond+',
+    MASTER_PLUS: 'Master+'
+  };
+
+  function renderRecommendations(session) {
+    const panel = document.getElementById('recommendationsPanel');
+    const list = document.getElementById('recommendationsList');
+    const tierNote = document.getElementById('recTierNote');
+    const recs = session.recommendations || [];
+
+    if (recs.length === 0) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    panel.style.display = 'block';
+    tierNote.textContent = `vs. ${TIER_LABELS[session.populationTier] || session.populationTier} baseline`;
+
+    list.innerHTML = recs.map((r, i) => {
+      const b = r.breakdown;
+      const parts = [];
+      if (b.personal) parts.push(`you: ${b.personal.winRate}% (${b.personal.games}g)`);
+      if (b.matchup) parts.push(`matchup: ${b.matchup.winRate}% (${b.matchup.games}g)`);
+      if (b.synergy) parts.push(`synergy: ${b.synergy.winRate}% (${b.synergy.allyCount} ally)`);
+      if (!b.hasBaseline && parts.length === 0) parts.push('no data yet');
+      else if (b.hasBaseline) parts.push(`baseline: ${b.baseline.winRate}%`);
+
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:baseline; padding:6px 0; border-bottom:1px solid rgba(200,155,60,0.15);">
+          <div>
+            <span style="color:var(--parchment-faint); font-family:'JetBrains Mono',monospace; font-size:11px; margin-right:8px;">#${i + 1}</span>
+            <span style="color:var(--parchment); font-family:'Oswald',sans-serif;">${r.champion}</span>
+            <div style="font-size:10px; color:var(--parchment-faint); margin-left:26px;">${parts.join(' · ')}</div>
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:16px; color:${r.score >= 50 ? '#7FD99B' : '#E08A8A'};">${r.score}%</span>
+        </div>`;
+    }).join('');
+  }
+
+  // --- Settings panel: load current config, save edits ---
+
+  async function loadSettingsIntoForm() {
+    const settings = await window.draftAPI.getSettings();
+    document.getElementById('poolInput').value = settings.championPool.join(', ');
+    document.getElementById('tierSelect').value = settings.populationTier;
+  }
+
+  document.getElementById('settingsSave').addEventListener('click', () => {
+    const championPool = document
+      .getElementById('poolInput')
+      .value.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const populationTier = document.getElementById('tierSelect').value;
+
+    window.draftAPI.updateSettings({ championPool, populationTier });
+
+    const note = document.getElementById('settingsSavedNote');
+    note.style.opacity = '1';
+    setTimeout(() => { note.style.opacity = '0'; }, 1800);
+  });
+
+  loadSettingsIntoForm();
 
   window.draftAPI.onSessionUpdate(render);
   window.draftAPI.onSessionEnded(resetToIdle);

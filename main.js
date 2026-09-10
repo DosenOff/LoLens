@@ -16,11 +16,13 @@ const { championName } = require('./lib/championData');
 const { mapSession } = require('./lib/sessionMapper');
 const { getMatchupsAgainst, getMatchupStats } = require('./lib/matchupStats');
 const { getPopulationStats, getPopulationMatchupStats, getPopulationSynergyStats } = require('./lib/populationStats');
+const { getPoolRecommendations } = require('./lib/recommendations');
+const { loadUserConfig, saveUserConfig } = require('./lib/userConfig');
 
-// Which population tier to compare the local player against by default.
-// A future enhancement could detect the player's actual rank instead of
-// hardcoding this - fine for now.
-const POPULATION_COMPARISON_TIER = 'EMERALD';
+// User-editable settings: champion pool + which population tier to compare
+// against. Loaded from user-config.json, changeable live from the UI.
+let userConfig = loadUserConfig();
+console.log(`Loaded user config: ${userConfig.championPool.length} champions in pool, tier=${userConfig.populationTier}`);
 
 // Load your personal match history once at startup. If it doesn't exist yet
 // (you haven't run fetch-match-ids/fetch-match-details), the app still works,
@@ -169,8 +171,8 @@ app.whenReady().then(() => {
       // Compute real personal matchup stats for every enemy champion
       // that's actually been picked so far. Keyed by champion name so the
       // UI can just do matchupData[championName] - same shape the old
-      // mock data used. Also includes the population matchup number
-      // for each entry - how the population does in that exact
+      // mock data used. Now also includes the population matchup number
+      // for each entry (v2) - how the population does in that exact
       // matchup, not just the champion overall.
       const matchupData = {};
       for (const p of session.theirTeam) {
@@ -183,7 +185,7 @@ app.whenReady().then(() => {
             winRate: s.winRate,
             populationMatchup: getPopulationMatchupStats(
               populationStats,
-              POPULATION_COMPARISON_TIER,
+              userConfig.populationTier,
               s.myChampion,
               p.championName
             )
@@ -199,15 +201,15 @@ app.whenReady().then(() => {
       session.synergyData = [];
       if (myPick && myPick.championName) {
         const personal = getMatchupStats(myMatches, { myChampion: myPick.championName });
-        const population = getPopulationStats(populationStats, POPULATION_COMPARISON_TIER, myPick.championName);
+        const population = getPopulationStats(populationStats, userConfig.populationTier, myPick.championName);
         session.personalVsPopulation = {
           championName: myPick.championName,
-          tier: POPULATION_COMPARISON_TIER,
+          tier: userConfig.populationTier,
           personal: personal.games > 0 ? personal : null,
           population
         };
 
-        // population synergy between your pick and each already-picked ally.
+        // v3: population synergy between your pick and each already-picked ally.
         const allies = session.myTeam.filter(
           (p) => p.cellId !== session.localPlayerCellId && p.championName
         );
@@ -215,12 +217,28 @@ app.whenReady().then(() => {
           allyChampion: ally.championName,
           synergy: getPopulationSynergyStats(
             populationStats,
-            POPULATION_COMPARISON_TIER,
+            userConfig.populationTier,
             myPick.championName,
             ally.championName
           )
         }));
       }
+
+      // Champion pool recommendations - ranks the user's pool for the
+      // current draft state using the transparent formula in lib/recommendations.js.
+      const enemyPick = session.theirTeam.find((p) => p.championName);
+      const currentAllies = session.myTeam
+        .filter((p) => p.cellId !== session.localPlayerCellId && p.championName)
+        .map((p) => p.championName);
+
+      session.recommendations = getPoolRecommendations(userConfig.championPool, {
+        myMatches,
+        populationStats,
+        tier: userConfig.populationTier,
+        enemyChampion: enemyPick ? enemyPick.championName : null,
+        allyChampions: currentAllies
+      });
+      session.populationTier = userConfig.populationTier; // so the UI can show/edit current tier
 
       // Push to the dashboard window if it's open.
       if (dashboardWindow) {
@@ -257,3 +275,16 @@ app.on('window-all-closed', () => {
   // closed, toast/overlay closed). Quitting only happens via the
   // tray menu's "Quit LoLens".
 });
+
+// Renderer -> main: the dashboard's settings panel pushes updates here.
+// Accepts a partial update, e.g. { championPool: [...] } or { populationTier: 'DIAMOND' }.
+ipcMain.on('update-settings', (event, updates) => {
+  userConfig = { ...userConfig, ...updates };
+  saveUserConfig(userConfig);
+  console.log('User config updated:', updates);
+  // The next champ-select poll tick will pick up the new config automatically -
+  // no need to force a re-send here.
+});
+
+// Renderer asks for current settings when the dashboard first opens.
+ipcMain.handle('get-settings', () => userConfig);
