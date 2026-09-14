@@ -107,8 +107,8 @@ function showToast() {
 // card is expanded (see the 'resize-overlay' IPC handler below) - keep
 // OVERLAY_WIDTH/OVERLAY_LIST_HEIGHT in sync with the constants of the same
 // name at the top of src/overlay.html's <script>.
-const OVERLAY_WIDTH = 320;
-const OVERLAY_LIST_HEIGHT = 258;
+const OVERLAY_WIDTH = 340;
+const OVERLAY_LIST_HEIGHT = 340;
 
 function showOverlay() {
   if (overlayWindow) return overlayWindow;
@@ -180,7 +180,7 @@ app.whenReady().then(() => {
       showToast();
     },
     onChampSelectUpdate: (rawSession) => {
-      const session = mapSession(rawSession, { championName });
+      const session = mapSession(rawSession, { championName, championIconUrl });
 
       // Compute real personal matchup stats for every enemy champion
       // that's actually been picked so far. Keyed by champion name so the

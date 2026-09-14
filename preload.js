@@ -8,8 +8,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('draftAPI', {
-  onSessionUpdate: (callback) => ipcRenderer.on('session-update', (_event, data) => callback(data)),
-  onSessionEnded: (callback) => ipcRenderer.on('session-ended', () => callback()),
-  getSettings: () => ipcRenderer.invoke('get-settings'),
-  updateSettings: (updates) => ipcRenderer.send('update-settings', updates)
+    onSessionUpdate: (callback) => ipcRenderer.on('session-update', (_event, data) => callback(data)),
+    onSessionEnded: (callback) => ipcRenderer.on('session-ended', () => callback()),
+    getSettings: () => ipcRenderer.invoke('get-settings'),
+    updateSettings: (updates) => ipcRenderer.send('update-settings', updates)
 });

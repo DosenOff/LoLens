@@ -4,9 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             --navy-deep: #0A0E14;
@@ -143,15 +141,106 @@
             margin: 10px 0 8px;
         }
 
-        .subtitle {
-            font-family: 'Spectral', serif;
-            font-size: 12px;
-            color: var(--parchment-dim);
-            margin-bottom: 10px;
+        /* ---- brand (header, list view) ---- */
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 7px;
         }
 
-        .subtitle .cap {
-            text-transform: capitalize;
+        .brand-mark {
+            width: 9px;
+            height: 9px;
+            flex-shrink: 0;
+            border: 1.5px solid var(--gold);
+            transform: rotate(45deg);
+        }
+
+        .brand-name {
+            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--gold-bright);
+        }
+
+        /* ---- context bar (role vs enemy comp) ---- */
+
+        .context-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .role-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .role-chip .role-text {
+            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--parchment);
+        }
+
+        .role-chip .vs {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--parchment-faint);
+        }
+
+        .enemy-comp {
+            display: flex;
+            gap: 4px;
+        }
+
+        .enemy-comp .portrait {
+            width: 24px;
+            height: 24px;
+            font-size: 8px;
+        }
+
+        .context-empty {
+            font-family: 'Spectral', serif;
+            font-size: 11px;
+            font-style: italic;
+            color: var(--parchment-faint);
+        }
+
+        /* ---- section header ---- */
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 8px;
+        }
+
+        .section-header .label {
+            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--gold-bright);
+        }
+
+        .section-header .col-hint {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--parchment-faint);
         }
 
         /* ---- list view ---- */
@@ -164,20 +253,56 @@
         .row {
             display: flex;
             align-items: center;
-            gap: 9px;
-            padding: 7px 0;
+            gap: 10px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            background: rgba(0, 0, 0, 0.18);
+            border: 1px solid rgba(200, 155, 60, 0.12);
+            cursor: pointer;
+            transition: border-color 0.15s ease, background 0.15s ease;
         }
 
-        .row+.row {
-            border-top: 1px solid rgba(200, 155, 60, 0.12);
+        .row:last-child {
+            margin-bottom: 0;
         }
 
-        .rank {
-            width: 14px;
+        .row:hover,
+        .row:focus-visible {
+            border-color: rgba(200, 155, 60, 0.45);
+            outline: none;
+        }
+
+        .row.top-pick {
+            border-color: var(--gold);
+            background: rgba(200, 155, 60, 0.08);
+        }
+
+        .rank-diamond {
+            width: 22px;
+            height: 22px;
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(45deg);
+            border: 1.5px solid var(--gold);
+        }
+
+        .rank-diamond.filled {
+            background: linear-gradient(160deg, var(--gold-bright), var(--gold));
+            border-color: var(--gold-bright);
+        }
+
+        .rank-diamond span {
+            transform: rotate(-45deg);
             font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
-            color: var(--parchment-faint);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gold-bright);
+        }
+
+        .rank-diamond.filled span {
+            color: var(--navy-deep);
         }
 
         .portrait {
@@ -203,9 +328,12 @@
             display: block;
         }
 
-        .name {
+        .row-main {
             flex: 1;
             min-width: 0;
+        }
+
+        .row-main .name {
             font-size: 14px;
             font-weight: 500;
             color: var(--parchment);
@@ -214,35 +342,55 @@
             text-overflow: ellipsis;
         }
 
-        .score {
-            flex-shrink: 0;
+        .row-main .sub-line {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 2px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
+            font-size: 10.5px;
+        }
+
+        .row-main .sub-line .wr {
+            color: var(--parchment-dim);
             font-weight: 500;
         }
 
-        .score.pos {
-            color: var(--green);
-        }
-
-        .score.neg {
-            color: var(--red);
-        }
-
-        .expand-btn {
-            flex-shrink: 0;
-            background: none;
-            border: none;
+        .row-main .sub-line .games {
             color: var(--parchment-faint);
-            font-size: 12px;
-            cursor: pointer;
-            padding: 2px 0 2px 4px;
-            line-height: 1;
         }
 
-        .expand-btn:hover {
-            color: var(--gold-bright);
+        .row-main .sub-line .low-sample {
+            color: var(--gold);
         }
+
+        .row-score {
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        .row-score .total {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .row-score .total.pos { color: var(--green); }
+        .row-score .total.neg { color: var(--red); }
+        .row-score .total.dim { color: var(--parchment-dim); }
+
+        .row-score .breakdown {
+            margin-top: 2px;
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9.5px;
+        }
+
+        .row-score .breakdown .pos { color: var(--green); }
+        .row-score .breakdown .neg { color: var(--red); }
+        .row-score .breakdown .dim { color: var(--parchment-faint); }
 
         .empty {
             font-family: 'Spectral', serif;
@@ -299,17 +447,9 @@
             margin-top: 2px;
         }
 
-        .stat-value.pos {
-            color: var(--green);
-        }
-
-        .stat-value.neg {
-            color: var(--red);
-        }
-
-        .stat-value.dim {
-            color: var(--parchment-dim);
-        }
+        .stat-value.pos { color: var(--green); }
+        .stat-value.neg { color: var(--red); }
+        .stat-value.dim { color: var(--parchment-dim); }
 
         .formula-note {
             font-family: 'JetBrains Mono', monospace;
@@ -330,9 +470,7 @@
             margin: 14px 0 6px;
         }
 
-        .section-title:first-of-type {
-            margin-top: 0;
-        }
+        .section-title:first-of-type { margin-top: 0; }
 
         .detail-row {
             display: flex;
@@ -372,13 +510,8 @@
             font-weight: 500;
         }
 
-        .detail-row .wr.pos {
-            color: var(--green);
-        }
-
-        .detail-row .wr.neg {
-            color: var(--red);
-        }
+        .detail-row .wr.pos { color: var(--green); }
+        .detail-row .wr.neg { color: var(--red); }
 
         .detail-row .n {
             flex-shrink: 0;
@@ -387,6 +520,48 @@
             color: var(--parchment-faint);
             width: 66px;
             text-align: right;
+        }
+
+        /* ---- footer bar (state / tier) ---- */
+
+        .footer-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(200, 155, 60, 0.15);
+        }
+
+        .footer-state {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .footer-state .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+            flex-shrink: 0;
+        }
+
+        .footer-state .state-text {
+            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-size: 10.5px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--parchment-dim);
+        }
+
+        .footer-tier {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            letter-spacing: 0.5px;
+            color: var(--gold-bright);
+            text-transform: uppercase;
         }
     </style>
 </head>
@@ -414,6 +589,7 @@
 
         const POSITION_LABELS = { top: 'top', jungle: 'jungle', middle: 'mid', bottom: 'bottom', utility: 'support' };
         const SHORT_POSITION_LABELS = { top: 'TOP', jungle: 'JG', middle: 'MID', bottom: 'BOT', utility: 'SUP' };
+        const TIER_LABELS = { EMERALD: 'Emerald', 'EMERALD+': 'Emerald+', DIAMOND: 'Diamond', 'DIAMOND+': 'Diamond+', MASTER_PLUS: 'Master+' };
         const LOW_SAMPLE_THRESHOLD = 200;
 
         let lastSession = null;
@@ -459,6 +635,13 @@
             return map[key] || position;
         }
 
+        // "184000" -> "184K", matching the sample-size shorthand used
+        // throughout the rest of the app's data displays.
+        function formatGames(n) {
+            if (n >= 1000) return `${Math.round(n / 1000)}K`;
+            return String(n);
+        }
+
         function resize(height) {
             if (window.overlayAPI && window.overlayAPI.resize) {
                 window.overlayAPI.resize(height);
@@ -483,42 +666,98 @@
 
         // ---- list view ----
 
-        function renderList(session) {
-            document.getElementById('headerTitle').textContent = 'Champ select';
+        function renderBrand() {
+            document.getElementById('headerTitle').innerHTML =
+                '<span class="brand"><span class="brand-mark"></span><span class="brand-name">LoLens</span></span>';
+        }
 
+        function renderContextBar(session) {
             const myPick = (session.myTeam || []).find((p) => p.cellId === session.localPlayerCellId);
             const posKey = myPick && myPick.position ? myPick.position.toLowerCase() : null;
-            const posText = posKey ? (POSITION_LABELS[posKey] || posKey) : 'unassigned';
+            const roleText = posKey ? (SHORT_POSITION_LABELS[posKey] || posKey.toUpperCase()) : '—';
+            const roleChip = `<div class="role-chip"><span class="role-text">${roleText}</span><span class="vs">vs</span></div>`;
 
-            const recs = (session.recommendations || []).slice(0, 3);
+            const enemyPicks = (session.theirTeam || []).filter((p) => p.championName);
+            const rightSide = enemyPicks.length > 0
+                ? `<div class="enemy-comp">${enemyPicks.map((p) => portraitHtml(p.championName, p.iconUrl)).join('')}</div>`
+                : '<span class="context-empty">waiting for enemy picks...</span>';
 
-            let rowsHtml;
-            if (recs.length === 0) {
-                rowsHtml = '<div class="empty">No pool recommendations yet</div>';
-            } else {
-                rowsHtml = recs.map((r, i) => {
-                    const cls = r.score >= 50 ? 'pos' : 'neg';
-                    return `
-        <div class="row">
-            <span class="rank">${i + 1}</span>
-            ${portraitHtml(r.champion, r.iconUrl)}
-            <span class="name">${r.champion}</span>
-            <span class="score ${cls}">${r.score}%</span>
-            <button class="expand-btn" data-champ="${r.champion}" aria-label="Show breakdown for ${r.champion}">&#9656;</button>
+            return `<div class="context-bar">${roleChip}${rightSide}</div>`;
+        }
+
+        function renderFooter(session) {
+            const tierLabel = TIER_LABELS[session.populationTier] || session.populationTier || '—';
+            return `
+        <div class="footer-bar">
+            <div class="footer-state"><span class="dot"></span><span class="state-text">Champion Select</span></div>
+            <span class="footer-tier">${tierLabel}</span>
         </div>`;
-                }).join('');
-            }
+        }
+
+        function renderRecRow(r, rank) {
+            const b = r.breakdown;
+            const isTop = rank === 1;
+
+            const totalCls = b.totalDelta > 0 ? 'pos' : b.totalDelta < 0 ? 'neg' : 'dim';
+            const totalSign = b.totalDelta > 0 ? '+' : '';
+
+            const wrText = b.baseline ? `${b.baseline.winRate}%` : '—';
+            const gamesText = b.baseline ? formatGames(b.baseline.games) : '';
+            const lowSample = b.baseline && b.baseline.games < LOW_SAMPLE_THRESHOLD;
+
+            const chip = (label, delta) => {
+                if (delta === null) return `<span class="dim">${label} —</span>`;
+                const cls = delta > 0 ? 'pos' : delta < 0 ? 'neg' : 'dim';
+                const sign = delta > 0 ? '+' : '';
+                return `<span class="${cls}">${label} ${sign}${delta}</span>`;
+            };
+
+            return `
+        <div class="row${isTop ? ' top-pick' : ''}" data-champ="${r.champion}" role="button" tabindex="0" aria-label="Show breakdown for ${r.champion}">
+            <span class="rank-diamond${isTop ? ' filled' : ''}"><span>${rank}</span></span>
+            ${portraitHtml(r.champion, r.iconUrl)}
+            <div class="row-main">
+                <div class="name">${r.champion}</div>
+                <div class="sub-line">
+                    <span class="wr">${wrText}</span>
+                    <span class="games">${gamesText}</span>
+                    ${lowSample ? '<span class="low-sample">&#9888;</span>' : ''}
+                </div>
+            </div>
+            <div class="row-score">
+                <div class="total ${totalCls}">${totalSign}${b.totalDelta}%</div>
+                <div class="breakdown">${chip('S', b.synergyDelta)}${chip('C', b.matchupDelta)}</div>
+            </div>
+        </div>`;
+        }
+
+        function renderList(session) {
+            renderBrand();
+
+            const recs = (session.recommendations || []).slice(0, 5);
+            const rowsHtml = recs.length > 0
+                ? recs.map((r, i) => renderRecRow(r, i + 1)).join('')
+                : '<div class="empty">No pool recommendations yet</div>';
 
             document.getElementById('content').innerHTML = `
-        <div class="subtitle"><span class="cap">Top picks</span> &middot; <span>${posText}</span></div>
+        ${renderContextBar(session)}
+        <div class="section-header"><span class="label">Top picks</span><span class="col-hint">Win% &middot; &Delta;</span></div>
         <div class="rows">${rowsHtml}</div>
+        ${renderFooter(session)}
       `;
 
-            document.querySelectorAll('.expand-btn').forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    expandedChampion = btn.dataset.champ;
+            document.querySelectorAll('.row[data-champ]').forEach((row) => {
+                const openDetail = () => {
+                    expandedChampion = row.dataset.champ;
                     view = 'detail';
                     renderCurrent();
+                };
+                row.addEventListener('click', openDetail);
+                row.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openDetail();
+                    }
                 });
             });
 
@@ -581,23 +820,26 @@
         <div class="section-title">Ally synergy</div>
         ${b.synergyList.length > 0
                     ? b.synergyList.map((e) => detailRow(e, SHORT_POSITION_LABELS)).join('')
-                    : '<div class="empty">No allies picked yet</div>'}`;
+                    : '<div class="empty">No allies picked yet</div>'}
+      `;
 
             const counterSection = `
         <div class="section-title">Enemy counter</div>
         ${b.matchupList.length > 0
                     ? b.matchupList.map((e) => detailRow(e, SHORT_POSITION_LABELS)).join('')
-                    : '<div class="empty">No enemy picks yet</div>'}`;
+                    : '<div class="empty">No enemy picks yet</div>'}
+      `;
 
             document.getElementById('content').innerHTML = `
         <div class="detail-champ-row">
-        ${portraitHtml(rec.champion, rec.iconUrl)}
-        <span class="detail-champ-name">${rec.champion}</span>
+          ${portraitHtml(rec.champion, rec.iconUrl)}
+          <span class="detail-champ-name">${rec.champion}</span>
         </div>
         <div class="rating-grid">${ratingGrid}</div>
         <div class="formula-note">Rating = Base WR + Personal Δ + Counter Δ + Synergy Δ<br>(each term only counted when real data supports it)</div>
         ${synergySection}
-        ${counterSection}`;
+        ${counterSection}
+      `;
 
             document.getElementById('backBtn').addEventListener('click', () => {
                 view = 'list';

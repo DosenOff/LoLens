@@ -13,7 +13,14 @@
 // It's slower than the naive approach, but the numbers actually mean
 // what they claim to mean.
 //
-// Run with: npm run fetch-population-data
+// USAGE:
+//   npm run fetch-population-data                        -> full sweep (all brackets), .env defaults
+//   npm run fetch-population-data -- diamond 100 5        -> just Diamond III/IV, 100 players, 5 games each
+//   npm run fetch-population-data -- diamond+ 100 5       -> just Diamond I/II
+//   npm run fetch-population-data -- diamond "" 5         -> just Diamond III/IV, PLAYERS from .env, 5 games each
+//   npm run fetch-population-data -- --help
+//
+// (the "--" is required so npm hands these args to the script, not itself)
 
 const fs = require('fs');
 const path = require('path');
@@ -21,25 +28,87 @@ const { riotRequest, riotPlatformRequest } = require('../lib/riotApi');
 
 const PLATFORM = process.env.RIOT_PLATFORM || 'na1';
 const REGION = process.env.RIOT_REGION || 'americas';
-const PLAYERS_PER_TIER = Number(process.env.POP_PLAYERS_PER_TIER || 50);
-// This is a TARGET, not a one-time fetch count. Rerunning the script with a
-// higher number here will top up existing players with more games rather
-// than starting over - see processSeedPlayer below.
-const GAMES_PER_PLAYER_TARGET = Number(process.env.POP_GAMES_PER_PLAYER || 1);
 const DELAY_MS = 1200;
 const QUEUE = 'RANKED_SOLO_5x5';
 
-const DIVISIONAL_TIERS = ['EMERALD', 'DIAMOND']; // add PLATINUM, GOLD, etc. if you want more buckets
-// Each tier gets split into two buckets instead of four flat divisions:
-// I/II (top two divisions) -> "+" suffix, III/IV (bottom two) -> no suffix.
-// e.g. EMERALD I/II -> "EMERALD+", EMERALD III/IV -> "EMERALD"
-const DIVISION_GROUPS = [
-    { suffix: '+', romanNumerals: ['I', 'II'] },
-    { suffix: '', romanNumerals: ['III', 'IV'] }
+// Every bucket we know how to fetch. A "bracket" CLI arg selects exactly
+// one of these; omitting it processes all of them (the old default sweep).
+const BUCKET_DEFINITIONS = [
+    { label: 'EMERALD+', tier: 'EMERALD', romanNumerals: ['I', 'II'] },
+    { label: 'EMERALD', tier: 'EMERALD', romanNumerals: ['III', 'IV'] },
+    { label: 'DIAMOND+', tier: 'DIAMOND', romanNumerals: ['I', 'II'] },
+    { label: 'DIAMOND', tier: 'DIAMOND', romanNumerals: ['III', 'IV'] },
+    { label: 'MASTER_PLUS', apex: true }
 ];
 
 const statePath = path.join(__dirname, '..', 'data', 'population-state.json');
 const outputPath = path.join(__dirname, '..', 'data', 'population-stats.json');
+
+function printUsageAndExit(code) {
+    console.log(`
+Usage: npm run fetch-population-data -- [bracket] [playersPerTier] [gamesPerPlayer]
+
+  bracket          One of: ${BUCKET_DEFINITIONS.map((b) => b.label.toLowerCase()).join(', ')}, or "all" (default)
+  playersPerTier   Overrides POP_PLAYERS_PER_TIER from .env for this run
+  gamesPerPlayer   Overrides POP_GAMES_PER_PLAYER from .env for this run
+
+  Leave a field empty ("") to fall through to its .env default while still
+  setting a later field. All three are optional - with none given, this
+  behaves exactly like the old full sweep.
+
+Examples:
+  npm run fetch-population-data -- diamond 100 5
+  npm run fetch-population-data -- diamond+ 100 5
+  npm run fetch-population-data -- diamond "" 5
+  npm run fetch-population-data
+`);
+    process.exit(code);
+}
+
+function normalizeBracketArg(raw) {
+    if (!raw || raw.trim() === '') return null;
+    const cleaned = raw.trim().toUpperCase();
+    if (cleaned === 'ALL') return 'ALL';
+    if (cleaned === 'MASTER+' || cleaned === 'MASTERPLUS' || cleaned === 'MASTER_PLUS') return 'MASTER_PLUS';
+    return cleaned; // e.g. "DIAMOND", "DIAMOND+", "EMERALD", "EMERALD+"
+}
+
+function parseOverrideInt(raw, envVar, fallback) {
+    if (raw !== undefined && raw.trim() !== '') {
+        const parsed = Number(raw);
+        if (!Number.isInteger(parsed) || parsed <= 0) {
+            console.error(`Invalid value "${raw}" - expected a positive whole number.`);
+            process.exit(1);
+        }
+        return parsed;
+    }
+    return Number(process.env[envVar] || fallback);
+}
+
+const [rawBracket, rawPlayers, rawGames] = process.argv.slice(2);
+
+if (rawBracket && ['--help', '-h', 'help'].includes(rawBracket.trim().toLowerCase())) {
+    printUsageAndExit(0);
+}
+
+const targetBracket = normalizeBracketArg(rawBracket);
+const PLAYERS_PER_TIER = parseOverrideInt(rawPlayers, 'POP_PLAYERS_PER_TIER', 50);
+// This is a TARGET, not a one-time fetch count. Rerunning the script with a
+// higher number here will top up existing players with more games rather
+// than starting over - see processSeedPlayer below.
+const GAMES_PER_PLAYER_TARGET = parseOverrideInt(rawGames, 'POP_GAMES_PER_PLAYER', 1);
+
+let bucketsToProcess;
+if (!targetBracket || targetBracket === 'ALL') {
+    bucketsToProcess = BUCKET_DEFINITIONS;
+} else {
+    const match = BUCKET_DEFINITIONS.find((b) => b.label === targetBracket);
+    if (!match) {
+        console.error(`Unknown bracket "${rawBracket}".`);
+        printUsageAndExit(1);
+    }
+    bucketsToProcess = [match];
+}
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -103,6 +172,50 @@ function recordSynergy(stats, tier, championName, allyChampionName, win) {
     if (win) stats.synergies[tier][championName][allyChampionName].wins += 1;
 }
 
+// ---- run-scoped diff helpers ----
+//
+// loadStats() returns the whole all-time file. To report "what did THIS
+// invocation actually add" rather than "here's the entire file's history",
+// snapshot the relevant counts before touching anything, then diff against
+// the same shape after. Kept intentionally dumb (counts only, no need to
+// diff win/loss separately for a progress summary).
+
+// stats.tiers is tier -> champion -> {games, wins} (2 levels deep).
+function snapshotTierGames(tiers) {
+    const snapshot = {};
+    for (const [tier, champs] of Object.entries(tiers || {})) {
+        snapshot[tier] = {};
+        for (const [champion, data] of Object.entries(champs)) {
+            snapshot[tier][champion] = data.games;
+        }
+    }
+    return snapshot;
+}
+
+// stats.matchups / stats.synergies are tier -> champion -> opponent/ally ->
+// {games, wins} (3 levels deep).
+function sumNestedGames(obj) {
+    let total = 0;
+    for (const champs of Object.values(obj || {})) {
+        for (const others of Object.values(champs)) {
+            for (const entry of Object.values(others)) {
+                total += entry.games;
+            }
+        }
+    }
+    return total;
+}
+
+function countNestedPairs(obj) {
+    let count = 0;
+    for (const champs of Object.values(obj || {})) {
+        for (const others of Object.values(champs)) {
+            count += Object.keys(others).length;
+        }
+    }
+    return count;
+}
+
 async function getSeedPlayersForDivisionGroup(tier, romanNumerals, count) {
     const perDivision = Math.ceil(count / romanNumerals.length);
     const players = [];
@@ -149,6 +262,15 @@ async function getSeedPlayersForApexTiers(count) {
     // Shuffle lightly so we're not only sampling the very top of Challenger every time.
     combined.sort(() => Math.random() - 0.5);
     return combined.slice(0, count);
+}
+
+async function getSeedPlayersForBucket(def, count) {
+    if (def.apex) {
+        console.log('Collecting seed players for MASTER_PLUS...');
+        return getSeedPlayersForApexTiers(count);
+    }
+    console.log(`Collecting seed players for ${def.label}...`);
+    return getSeedPlayersForDivisionGroup(def.tier, def.romanNumerals, count);
 }
 
 async function resolvePuuid(entry) {
@@ -232,22 +354,23 @@ async function processSeedPlayer(puuid, tierLabel, stats, state) {
     const stats = loadStats();
     const state = loadState();
 
+    // Snapshot before this run touches anything - see the diff helpers above.
+    const beforeTierGames = snapshotTierGames(stats.tiers);
+    const beforeMatchupGames = sumNestedGames(stats.matchups);
+    const beforeSynergyGames = sumNestedGames(stats.synergies);
+    const beforeMatchupPairs = countNestedPairs(stats.matchups);
+    const beforeSynergyPairs = countNestedPairs(stats.synergies);
+    const seenPuuidsBefore = state.seenPuuids.length;
+
+    console.log(`Bracket(s): ${bucketsToProcess.map((b) => b.label).join(', ')}`);
     console.log(`Sampling ~${PLAYERS_PER_TIER} players per tier, targeting ${GAMES_PER_PLAYER_TARGET} games each.\n`);
 
     const tierBuckets = [];
 
-    for (const tier of DIVISIONAL_TIERS) {
-        for (const group of DIVISION_GROUPS) {
-            const bucketLabel = `${tier}${group.suffix}`;
-            console.log(`Collecting seed players for ${bucketLabel}...`);
-            const entries = await getSeedPlayersForDivisionGroup(tier, group.romanNumerals, PLAYERS_PER_TIER);
-            tierBuckets.push({ label: bucketLabel, entries });
-        }
+    for (const def of bucketsToProcess) {
+        const entries = await getSeedPlayersForBucket(def, PLAYERS_PER_TIER);
+        tierBuckets.push({ label: def.label, entries });
     }
-
-    console.log('Collecting seed players for MASTER_PLUS...');
-    const apexEntries = await getSeedPlayersForApexTiers(PLAYERS_PER_TIER);
-    tierBuckets.push({ label: 'MASTER_PLUS', entries: apexEntries });
 
     for (const bucket of tierBuckets) {
         console.log(`\nProcessing ${bucket.label} (${bucket.entries.length} seed players)...`);
@@ -281,35 +404,40 @@ async function processSeedPlayer(puuid, tierLabel, stats, state) {
         if (totalSeen > 0 && alreadyAtTargetCount / totalSeen > 0.5) {
             console.log(
                 `  Note: ${alreadyAtTargetCount}/${totalSeen} players in ${bucket.label} were already at target depth. ` +
-                `This tier's sampled pool may be getting saturated - consider raising POP_GAMES_PER_PLAYER ` +
+                `This tier's sampled pool may be getting saturated - consider raising the games-per-player target ` +
                 `for more depth rather than expecting more new players.`
             );
         }
     }
 
-    console.log('\nDone. Results:');
+    // ---- summary: only what THIS run added, not the whole file's history ----
+
+    console.log('\nDone. Added this run:');
+    let anyChampionGamesAdded = false;
     for (const [tier, champs] of Object.entries(stats.tiers)) {
         for (const [champion, data] of Object.entries(champs)) {
-            console.log(`  ${tier} - ${champion}: ${data.games} games`);
+            const before = (beforeTierGames[tier] && beforeTierGames[tier][champion]) || 0;
+            const added = data.games - before;
+            if (added > 0) {
+                anyChampionGamesAdded = true;
+                console.log(`  ${tier} - ${champion}: +${added} games (${data.games} total)`);
+            }
         }
+    }
+    if (!anyChampionGamesAdded) {
+        console.log('  (no new games added - every sampled player was already at the target depth for this bracket)');
     }
 
-    let matchupPairs = 0;
-    for (const champs of Object.values(stats.matchups)) {
-        for (const enemies of Object.values(champs)) {
-            matchupPairs += Object.keys(enemies).length;
-        }
-    }
-    let synergyPairs = 0;
-    for (const champs of Object.values(stats.synergies)) {
-        for (const allies of Object.values(champs)) {
-            synergyPairs += Object.keys(allies).length;
-        }
-    }
-    console.log(`\nMatchup pairs recorded: ${matchupPairs}`);
-    console.log(`Synergy pairs recorded: ${synergyPairs}`);
-    console.log(`(Note: these only include matches fetched since this feature was added)`);
+    const matchupGamesAdded = sumNestedGames(stats.matchups) - beforeMatchupGames;
+    const synergyGamesAdded = sumNestedGames(stats.synergies) - beforeSynergyGames;
+    const matchupPairsAdded = countNestedPairs(stats.matchups) - beforeMatchupPairs;
+    const synergyPairsAdded = countNestedPairs(stats.synergies) - beforeSynergyPairs;
 
-    console.log(`\nTotal players logged (all time): ${state.seenPuuids.length}`);
+    console.log(`\nMatchup games added this run: ${matchupGamesAdded} (${matchupPairsAdded} new matchup pairs)`);
+    console.log(`Synergy games added this run: ${synergyGamesAdded} (${synergyPairsAdded} new synergy pairs)`);
+    console.log(`(Note: matchup/synergy tracking only covers matches fetched since that feature was added)`);
+
+    console.log(`\nNew players logged this run: ${state.seenPuuids.length - seenPuuidsBefore}`);
+    console.log(`Total players logged (all time): ${state.seenPuuids.length}`);
     console.log(`Saved to data/population-stats.json`);
 })();
