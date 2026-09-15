@@ -82,7 +82,7 @@ function createDashboardWindow() {
 function showToast() {
   if (toastWindow) return; // already showing
 
-  const { x, y, width, height } = topLeftPosition(220, 46);
+  const { x, y, width, height } = topLeftPosition(250, 54);
   toastWindow = new BrowserWindow({
     x, y, width, height,
     frame: false,
@@ -100,7 +100,7 @@ function showToast() {
       toastWindow.close();
       toastWindow = null;
     }
-  }, 2500);
+  }, 3200);
 }
 
 // Overlay height starts in "list" mode and grows/shrinks from there - both

@@ -3,32 +3,66 @@
 
 <head>
     <meta charset="UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600&family=Spectral:ital@1&display=swap" rel="stylesheet">
     <style>
         html,
         body {
             margin: 0;
             padding: 0;
+            /* height:100% must be explicit here, or .inset's own
+               height:100% below has no ancestor height to resolve
+               against - it silently computes as auto instead, which
+               collapses the toast to content-height and pins it to the
+               top of the window (this was the actual cause of the
+               "touching the top" look, not a flex alignment issue). */
+            height: 100%;
             background: transparent;
             overflow: hidden;
             -webkit-app-region: no-drag;
         }
 
+        /* macOS applies a compositor-level rounded corner to frameless/
+           transparent BrowserWindows that can't be turned off from the app
+           side (same issue overlay.html already works around). Without
+           this inset, .toast's own border-radius gets drawn flush to the
+           window edge and collides with - and is unevenly clipped by -
+           that native rounding, which is why the corners looked uneven. */
+        .inset {
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            padding: 4px;
+        }
+
         .toast {
-            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-family: 'Spectral', serif;
             width: 100%;
             height: 100%;
             box-sizing: border-box;
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 0 16px;
+            padding: 0 14px;
             background: linear-gradient(135deg, #0F1B33, #0A1428);
             border: 1px solid #C89B3C;
-            border-radius: 4px;
+            border-radius: 7px;
             color: #F0E6D2;
-            font-size: 14px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
+            /* Fade + a slight upward drift on the way in, held fully
+               visible in the middle, then fades back out. Duration here
+               (3200ms) must match the setTimeout in main.js's
+               showToast() that actually closes the window - if you
+               change one, change the other, or the window will either
+               close mid-fade or sit fully transparent for a moment
+               before closing. */
+            animation: toastFade 3200ms ease-in-out forwards;
+        }
+
+        @keyframes toastFade {
+            0%   { opacity: 0; transform: translateY(-4px); }
+            8%   { opacity: 1; transform: translateY(0); }
+            88%  { opacity: 1; }
+            100% { opacity: 0; }
         }
 
         .dot {
@@ -39,11 +73,43 @@
             box-shadow: 0 0 8px #0AC8B9;
             flex-shrink: 0;
         }
+
+        .text {
+            min-width: 0;
+        }
+
+        .headline {
+            font-family: 'Teko', 'Segoe UI', sans-serif;
+            font-weight: 500;
+            font-size: 17px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #F0C75E;
+            line-height: 1.1;
+            white-space: nowrap;
+        }
+
+        .subtext {
+            font-family: 'Spectral', serif;
+            font-style: italic;
+            font-size: 11px;
+            color: #A09B8C;
+            margin-top: 1px;
+            white-space: nowrap;
+        }
     </style>
 </head>
 
 <body>
-    <div class="toast"><span class="dot"></span>LoLens ready</div>
+    <div class="inset">
+        <div class="toast">
+            <span class="dot"></span>
+            <div class="text">
+                <div class="headline">LoLens ready</div>
+                <div class="subtext">Opens automatically in champ select</div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
