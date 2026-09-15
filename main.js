@@ -103,24 +103,57 @@ function showToast() {
   }, 2500);
 }
 
-// Overlay height starts in "list" mode and grows when a champion's detail
-// card is expanded (see the 'resize-overlay' IPC handler below) - keep
+// Overlay height starts in "list" mode and grows/shrinks from there - both
+// automatically (fitting content) and manually (the user dragging the
+// window's bottom edge, or the collapse toggle in the header). Keep
 // OVERLAY_WIDTH/OVERLAY_LIST_HEIGHT in sync with the constants of the same
 // name at the top of src/overlay.html's <script>.
 const OVERLAY_WIDTH = 340;
 const OVERLAY_LIST_HEIGHT = 340;
 
+// overlayAutoFit: whether the overlay should keep resizing itself to fit
+// its content on every render. Starts true; a real user edge-drag resize
+// (detected below) turns it off so we stop fighting their chosen size -
+// content beyond that size is simply cropped (see overlay.html's
+// overflow:hidden). An explicit user action - the collapse/expand toggle,
+// or double-clicking the drag grip - turns it back on (see the
+// 'resize-overlay' handler's `forced` handling further down).
+let overlayAutoFit = true;
+// Guards against our own setSize() calls (from the resize-overlay IPC
+// handler) being mistaken for a user-initiated edge-drag resize, since
+// Electron's 'resize' event fires for both.
+let suppressNextResizeEvent = false;
+
 function showOverlay() {
   if (overlayWindow) return overlayWindow;
 
+  overlayAutoFit = true;
+  suppressNextResizeEvent = false;
+
   const { x, y, width, height } = topLeftPosition(OVERLAY_WIDTH, OVERLAY_LIST_HEIGHT);
+  const { workAreaSize } = screen.getPrimaryDisplay();
+
   overlayWindow = new BrowserWindow({
     x, y, width, height,
+    // Width is pinned (min === max) so edge-drag can only resize height -
+    // "vertically" resizable, not horizontally, per the design brief.
+    minWidth: OVERLAY_WIDTH,
+    maxWidth: OVERLAY_WIDTH,
+    minHeight: 40,
+    maxHeight: workAreaSize.height - CORNER_MARGIN * 2,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
-    resizable: false,
+    resizable: true,
+    // focusable:false means this window can never become the OS-focused
+    // window - clicking League (or anything else) just focuses it normally
+    // without the overlay stealing or needing to "give up" focus. Buttons/
+    // rows inside the overlay still receive clicks fine; only keyboard
+    // focus and being brought to the front on click are affected. If
+    // edge-drag resizing feels unresponsive on your OS, flipping this to
+    // true is the fix - the tradeoff is the overlay can then steal focus
+    // from League on click.
     focusable: false,
     hasShadow: false,
     // roundedCorners is a Windows-only option (no-op elsewhere) - harmless
@@ -136,6 +169,18 @@ function showOverlay() {
     }
   });
   overlayWindow.loadFile('src/overlay.html');
+
+  overlayWindow.on('resize', () => {
+    if (suppressNextResizeEvent) {
+      suppressNextResizeEvent = false;
+      return;
+    }
+    // A real user-initiated edge-drag resize - stop auto-fitting to
+    // content until they ask for that again (collapse/expand toggle, or
+    // double-clicking the drag grip - see overlay.html).
+    overlayAutoFit = false;
+  });
+
   overlayWindow.on('closed', () => { overlayWindow = null; });
   return overlayWindow;
 }
@@ -181,6 +226,23 @@ app.whenReady().then(() => {
     },
     onChampSelectUpdate: (rawSession) => {
       const session = mapSession(rawSession, { championName, championIconUrl });
+
+      // Attach a Data Dragon icon URL to every myTeam/theirTeam entry that
+      // has a champion picked. mapSession() only gives us names (it's the
+      // LCU-shape -> plain-object mapper, and doesn't know about icons at
+      // all), so without this the overlay's enemy-comp portraits and the
+      // dashboard's team slots have nothing to render but the abbreviation
+      // fallback in portraitHtml(). Recommendations already got this same
+      // treatment further down (r.iconUrl, matchupList/synergyList) - this
+      // just extends it to the raw team rosters too.
+      session.myTeam = session.myTeam.map((p) => ({
+        ...p,
+        iconUrl: p.championName ? championIconUrl(p.championName) : null
+      }));
+      session.theirTeam = session.theirTeam.map((p) => ({
+        ...p,
+        iconUrl: p.championName ? championIconUrl(p.championName) : null
+      }));
 
       // Compute real personal matchup stats for every enemy champion
       // that's actually been picked so far. Keyed by champion name so the
@@ -331,16 +393,25 @@ ipcMain.on('update-settings', (event, updates) => {
 // Renderer asks for current settings when the dashboard first opens.
 ipcMain.handle('get-settings', () => userConfig);
 
-// Overlay -> main: grow/shrink the overlay window to exactly fit its
-// content when toggling between the compact "top picks" list and an
-// expanded champion detail card. Only clamps against the screen's visible
-// work area (so the window can't render off-screen) - not an arbitrary
-// content cap, since overlay.html sizes itself to fit everything with no
-// internal scrolling.
-ipcMain.on('resize-overlay', (event, height) => {
+// Overlay -> main: grow/shrink the overlay window to fit its content
+// (switching list <-> detail, or the collapse toggle). Clamps against the
+// screen's visible work area so the window can't render off-screen.
+//
+// `forced` distinguishes two callers: passive per-render auto-fit (from
+// overlay.html's fitToContent(), forced=false/omitted) is skipped once the
+// user has manually edge-drag resized the window (overlayAutoFit === false)
+// so we don't fight their chosen size - content beyond that size is simply
+// cropped. `forced` calls (the collapse/expand toggle, double-clicking the
+// drag grip) always take effect and re-enable auto-fit going forward,
+// since those are explicit "here's the size I want now" actions.
+ipcMain.on('resize-overlay', (event, { height, forced } = {}) => {
   if (!overlayWindow) return;
+  if (!forced && !overlayAutoFit) return;
+  if (forced) overlayAutoFit = true;
+
   const { workAreaSize } = screen.getPrimaryDisplay();
   const maxHeight = workAreaSize.height - CORNER_MARGIN * 2;
-  const clamped = Math.max(80, Math.min(maxHeight, Math.round(height)));
+  const clamped = Math.max(40, Math.min(maxHeight, Math.round(height)));
+  suppressNextResizeEvent = true;
   overlayWindow.setSize(OVERLAY_WIDTH, clamped);
 });

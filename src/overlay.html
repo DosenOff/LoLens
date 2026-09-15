@@ -4,12 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
-            --navy-deep: #0A0E14;
-            --navy: #0A1428;
-            --navy-panel: #0F1B33;
+            --navy-deep: #05070C;
+            --navy: #060C18;
+            --navy-panel: #0A1424;
             --gold: #C89B3C;
             --gold-bright: #F0C75E;
             --gold-dim: rgba(200, 155, 60, 0.3);
@@ -28,7 +28,7 @@
             height: 100%;
             background: transparent;
             overflow: hidden;
-            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-family: 'Teko', 'Segoe UI', sans-serif;
             color: var(--parchment);
             -webkit-app-region: no-drag;
         }
@@ -51,7 +51,7 @@
             box-sizing: border-box;
             background: linear-gradient(160deg, var(--navy-panel) 0%, var(--navy) 100%);
             border: 1px solid var(--gold-dim);
-            padding: 16px 18px;
+            padding: 5px 16px 3px;
         }
 
         .frame::before,
@@ -94,23 +94,56 @@
             border-top: none;
         }
 
+        /* A thin drag handle above the header - lets the window be moved
+           without needing focus (works via the OS window manager, not app
+           focus, so it's compatible with focusable:false in main.js). */
+        .grip {
+            -webkit-app-region: drag;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            height: 5px;
+            margin-bottom: 3px;
+            cursor: grab;
+        }
+
+        .grip span {
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: var(--parchment-faint);
+        }
+
         .header {
             display: flex;
             justify-content: space-between;
-            align-items: baseline;
+            align-items: center;
             gap: 8px;
+            -webkit-app-region: drag;
         }
 
+        .header-actions {
+            display: flex;
+            align-items: center;
+            -webkit-app-region: no-drag;
+        }
+
+        /* Collapse toggle now lives as a tab at the bottom of the frame
+           (see .collapse-tab below) rather than in the header - kept this
+           rule name-compatible via #collapseBtn id, just restyled/moved. */
+
         .header .title {
-            font-family: 'Oswald', 'Segoe UI', sans-serif;
-            font-size: 14px;
-            font-weight: 600;
+            font-family: 'Teko', 'Segoe UI', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
             letter-spacing: 2px;
             text-transform: uppercase;
             color: var(--gold-bright);
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1;
+            /* overflow/text-overflow intentionally removed - they were
+               clipping the rotated .brand-mark diamond's bounding box */
         }
 
         .back-btn {
@@ -120,25 +153,55 @@
             background: none;
             border: none;
             color: var(--gold-bright);
-            font-family: 'Oswald', 'Segoe UI', sans-serif;
-            font-size: 12px;
+            font-family: 'Teko', 'Segoe UI', sans-serif;
+            font-size: 13px;
             letter-spacing: 1px;
             text-transform: uppercase;
             cursor: pointer;
             padding: 0;
+            -webkit-app-region: no-drag;
         }
 
         .header .timer {
             font-family: 'JetBrains Mono', monospace;
             font-size: 14px;
             color: var(--gold-bright);
+            line-height: 1;
             flex-shrink: 0;
         }
 
         .divider {
             height: 1px;
             background: var(--gold-dim);
-            margin: 10px 0 8px;
+            /* negative L/R margin cancels .frame's 16px padding so the
+               line bleeds to the frame's border edges, matching Rabadon's
+               full-width divider instead of stopping short at the inset */
+            margin: 3px -16px;
+        }
+
+        .collapse-tab {
+            position: absolute;
+            left: 50%;
+            bottom: 3px;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 11px;
+            background: rgba(200, 155, 60, 0.08);
+            border: 1px solid var(--gold-dim);
+            color: var(--parchment-faint);
+            font-size: 9px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            -webkit-app-region: no-drag;
+        }
+
+        .collapse-tab:hover {
+            color: var(--gold-bright);
+            border-color: var(--gold);
         }
 
         /* ---- brand (header, list view) ---- */
@@ -158,9 +221,9 @@
         }
 
         .brand-name {
-            font-family: 'Oswald', 'Segoe UI', sans-serif;
-            font-size: 13px;
-            font-weight: 600;
+            font-family: 'Teko', 'Segoe UI', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
             letter-spacing: 2px;
             text-transform: uppercase;
             color: var(--gold-bright);
@@ -173,7 +236,8 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
-            margin-bottom: 12px;
+            margin-top: 5px;
+            margin-bottom: 8px;
         }
 
         .role-chip {
@@ -184,9 +248,9 @@
         }
 
         .role-chip .role-text {
-            font-family: 'Oswald', 'Segoe UI', sans-serif;
-            font-size: 12px;
-            font-weight: 600;
+            font-family: 'Teko', 'Segoe UI', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
             letter-spacing: 1px;
             text-transform: uppercase;
             color: var(--parchment);
@@ -223,13 +287,13 @@
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .section-header .label {
-            font-family: 'Oswald', 'Segoe UI', sans-serif;
-            font-size: 11px;
-            font-weight: 600;
+            font-family: 'Teko', 'Segoe UI', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
             letter-spacing: 2px;
             text-transform: uppercase;
             color: var(--gold-bright);
@@ -254,8 +318,8 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 8px 10px;
-            margin-bottom: 6px;
+            padding: 6px 8px;
+            margin-bottom: 4px;
             background: rgba(0, 0, 0, 0.18);
             border: 1px solid rgba(200, 155, 60, 0.12);
             cursor: pointer;
@@ -278,8 +342,8 @@
         }
 
         .rank-diamond {
-            width: 22px;
-            height: 22px;
+            width: 18px;
+            height: 18px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
@@ -296,7 +360,7 @@
         .rank-diamond span {
             transform: rotate(-45deg);
             font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             color: var(--gold-bright);
         }
@@ -334,7 +398,7 @@
         }
 
         .row-main .name {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 500;
             color: var(--parchment);
             white-space: nowrap;
@@ -371,7 +435,7 @@
 
         .row-score .total {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
         }
 
@@ -382,10 +446,10 @@
         .row-score .breakdown {
             margin-top: 2px;
             display: flex;
-            gap: 6px;
+            gap: 5px;
             justify-content: flex-end;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 9.5px;
+            font-size: 9px;
         }
 
         .row-score .breakdown .pos { color: var(--green); }
@@ -416,8 +480,8 @@
         }
 
         .detail-champ-name {
-            font-size: 17px;
-            font-weight: 600;
+            font-size: 19px;
+            font-weight: 500;
             color: var(--parchment);
         }
 
@@ -460,7 +524,7 @@
         }
 
         .section-title {
-            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-family: 'Teko', 'Segoe UI', sans-serif;
             font-size: 11px;
             letter-spacing: 1.5px;
             text-transform: uppercase;
@@ -528,8 +592,16 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 12px;
-            padding-top: 10px;
+            margin: 8px -16px 0;
+            padding: 8px 16px 0;
+            border-top: 1px solid rgba(200, 155, 60, 0.15);
+        }
+
+        /* Just the hairline from .footer-bar's border-top, reused on its
+           own above "Top picks" - no dot/text/tier content, just the line. */
+        .section-divider {
+            height: 0;
+            margin: 0 -16px 8px;
             border-top: 1px solid rgba(200, 155, 60, 0.15);
         }
 
@@ -549,7 +621,7 @@
         }
 
         .footer-state .state-text {
-            font-family: 'Oswald', 'Segoe UI', sans-serif;
+            font-family: 'Teko', 'Segoe UI', sans-serif;
             font-size: 10.5px;
             letter-spacing: 1px;
             text-transform: uppercase;
@@ -572,14 +644,22 @@
             <div class="corner-tr"></div>
             <div class="corner-bl"></div>
 
+            <div class="grip" id="grip" title="Drag to move · double-click to reset size">
+                <span></span><span></span><span></span>
+            </div>
+
             <div class="header">
                 <span class="title" id="headerTitle">Champ select</span>
-                <span class="timer" id="timer">--:--</span>
+                <div class="header-actions">
+                    <span class="timer" id="timer">--:--</span>
+                </div>
             </div>
 
             <div class="divider"></div>
 
             <div id="content"></div>
+
+            <button class="collapse-tab" id="collapseBtn" aria-label="Collapse overlay" title="Collapse">&#9662;</button>
         </div>
     </div>
 
@@ -595,6 +675,7 @@
         let lastSession = null;
         let view = 'list'; // 'list' | 'detail'
         let expandedChampion = null;
+        let collapsed = false;
 
         function abbreviate(name) {
             return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
@@ -642,9 +723,9 @@
             return String(n);
         }
 
-        function resize(height) {
+        function resize(height, forced) {
             if (window.overlayAPI && window.overlayAPI.resize) {
-                window.overlayAPI.resize(height);
+                window.overlayAPI.resize(height, forced);
             }
         }
 
@@ -657,12 +738,41 @@
         // window can't render off-screen - that's a display-safety bound,
         // not a content cap.
         function fitToContent() {
+            if (collapsed) return; // frozen at header-only height until expanded
             requestAnimationFrame(() => {
                 const insetWrap = document.getElementById('insetWrap');
                 const natural = Math.ceil(insetWrap.getBoundingClientRect().height) + 1; // +1px rounding safety
                 resize(Math.max(MIN_HEIGHT, natural));
             });
         }
+
+        // Measures whatever the frame's natural content height currently is
+        // (list, detail, or collapsed-to-header) and forces the window to
+        // match it - "forced" bypasses the manual-resize lock below and
+        // re-enables auto-fit going forward. Used by the collapse toggle
+        // and by double-clicking the drag grip (a "reset size" escape
+        // hatch after a manual edge-drag resize).
+        function forceFitToContent() {
+            requestAnimationFrame(() => {
+                const insetWrap = document.getElementById('insetWrap');
+                const natural = Math.ceil(insetWrap.getBoundingClientRect().height) + 1;
+                const floor = collapsed ? 0 : MIN_HEIGHT; // don't fight the collapsed header-only height
+                resize(Math.max(floor, natural), true);
+            });
+        }
+
+        function setCollapsed(value) {
+            collapsed = value;
+            document.getElementById('content').style.display = collapsed ? 'none' : '';
+            const btn = document.getElementById('collapseBtn');
+            btn.innerHTML = collapsed ? '&#9656;' : '&#9662;';
+            btn.title = collapsed ? 'Expand' : 'Collapse';
+            btn.setAttribute('aria-label', collapsed ? 'Expand overlay' : 'Collapse overlay');
+            forceFitToContent();
+        }
+
+        document.getElementById('collapseBtn').addEventListener('click', () => setCollapsed(!collapsed));
+        document.getElementById('grip').addEventListener('dblclick', forceFitToContent);
 
         // ---- list view ----
 
@@ -698,8 +808,7 @@
             const b = r.breakdown;
             const isTop = rank === 1;
 
-            const totalCls = b.totalDelta > 0 ? 'pos' : b.totalDelta < 0 ? 'neg' : 'dim';
-            const totalSign = b.totalDelta > 0 ? '+' : '';
+            const scoreCls = r.score >= 50 ? 'pos' : 'neg';
 
             const wrText = b.baseline ? `${b.baseline.winRate}%` : '—';
             const gamesText = b.baseline ? formatGames(b.baseline.games) : '';
@@ -725,7 +834,7 @@
                 </div>
             </div>
             <div class="row-score">
-                <div class="total ${totalCls}">${totalSign}${b.totalDelta}%</div>
+                <div class="total ${scoreCls}">${r.score}%</div>
                 <div class="breakdown">${chip('S', b.synergyDelta)}${chip('C', b.matchupDelta)}</div>
             </div>
         </div>`;
@@ -741,6 +850,7 @@
 
             document.getElementById('content').innerHTML = `
         ${renderContextBar(session)}
+        <div class="section-divider"></div>
         <div class="section-header"><span class="label">Top picks</span><span class="col-hint">Win% &middot; &Delta;</span></div>
         <div class="rows">${rowsHtml}</div>
         ${renderFooter(session)}

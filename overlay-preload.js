@@ -5,7 +5,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('overlayAPI', {
     onUpdate: (callback) => ipcRenderer.on('champselect-update', (_event, data) => callback(data)),
-    // Lets the overlay grow/shrink its own window when toggling between the
-    // compact list and an expanded champion detail card.
-    resize: (height) => ipcRenderer.send('resize-overlay', height),
+    // Lets the overlay grow/shrink its own window - passively (fitting
+    // content) or explicitly (collapse toggle, reset-size double-click).
+    // `forced` tells main.js to override a user's manual edge-drag resize;
+    // see the 'resize-overlay' handler in main.js for the full picture.
+    resize: (height, forced) => ipcRenderer.send('resize-overlay', { height, forced: !!forced }),
 });
