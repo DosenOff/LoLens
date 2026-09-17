@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Draft Intel — Settings</title>
+    <title>LoLens — Settings</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -20,6 +20,8 @@
             --parchment: #F0E6D2;
             --parchment-dim: #A09B8C;
             --parchment-faint: #5A5648;
+            --red: #E08A8A;
+            --green: #7FD99B;
         }
 
         * {
@@ -158,6 +160,7 @@
         .panel {
             padding: 18px 20px;
             margin-bottom: 16px;
+            overflow: visible;
         }
 
         .panel-title {
@@ -171,6 +174,7 @@
 
         .field {
             margin-bottom: 18px;
+            position: relative;
         }
 
         .field:last-child {
@@ -189,31 +193,197 @@
         .field .hint {
             font-size: 10px;
             color: var(--parchment-faint);
-            margin-top: 5px;
+            margin-top: 6px;
             font-style: italic;
         }
 
-        select {
+        /* ---- role tabs ---- */
+        .role-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .role-tab {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--gold-dim);
+            color: var(--parchment-dim);
+            font-family: 'Oswald', sans-serif;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 7px 14px;
+            cursor: pointer;
+        }
+
+        .role-tab:hover {
+            border-color: var(--gold);
+            color: var(--gold-bright);
+        }
+
+        .role-tab.active {
+            border-color: var(--gold);
+            color: var(--navy-deep);
+            background: var(--gold);
+        }
+
+        /* ---- custom dropdown ("combo") ---- */
+        .combo {
+            position: relative;
+        }
+
+        .combo-trigger {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--gold-dim);
+            color: var(--parchment);
+            padding: 9px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .combo-trigger:hover,
+        .combo-trigger.open {
+            border-color: var(--gold);
+        }
+
+        .combo-trigger .chev {
+            color: var(--parchment-faint);
+            font-size: 10px;
+            margin-left: 8px;
+            flex-shrink: 0;
+        }
+
+        .combo-search-input {
             width: 100%;
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid var(--gold-dim);
             color: var(--parchment);
-            padding: 8px 10px;
+            padding: 9px 10px;
             font-family: 'JetBrains Mono', monospace;
             font-size: 12px;
         }
 
-        select:focus {
+        .combo-search-input:focus {
             outline: none;
             border-color: var(--gold);
         }
 
-        select[multiple] {
-            height: 160px;
+        .combo-search-input:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
         }
 
-        select[multiple] option {
-            padding: 3px 6px;
+        /* The panel is toggled with the native `hidden` attribute from JS. This
+     rule has to win over the class-based display:flex below it, or the
+     panel renders permanently open regardless of `hidden` - author rules
+     of equal specificity beat the browser's own [hidden]{display:none},
+     so it has to be stated explicitly rather than assumed. */
+        .combo-panel[hidden] {
+            display: none;
+        }
+
+        .combo-panel {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            z-index: 30;
+            background: var(--navy-panel);
+            border: 1px solid var(--gold);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+            max-height: 264px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .combo-list {
+            overflow-y: auto;
+        }
+
+        .combo-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--parchment);
+        }
+
+        .combo-row:hover {
+            background: rgba(200, 155, 60, 0.15);
+        }
+
+        .combo-row.selected {
+            background: rgba(200, 155, 60, 0.1);
+            color: var(--gold-bright);
+        }
+
+        .combo-row .row-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            border: 1px solid rgba(200, 155, 60, 0.3);
+            background: #16243F;
+            object-fit: cover;
+        }
+
+        .combo-row .row-name {
+            flex: 1;
+        }
+
+        .combo-empty {
+            padding: 12px 10px;
+            font-size: 11px;
+            color: var(--parchment-faint);
+            font-style: italic;
+        }
+
+        /* ---- pool chips ---- */
+        .pool-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .pool-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(200, 155, 60, 0.25);
+            border-radius: 14px;
+            padding: 4px 8px 4px 5px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--parchment);
+        }
+
+        .pool-chip img {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1px solid rgba(200, 155, 60, 0.3);
+            flex-shrink: 0;
+        }
+
+        .pool-chip .remove {
+            cursor: pointer;
+            color: var(--parchment-faint);
+            font-size: 11px;
+            padding-left: 2px;
+        }
+
+        .pool-chip .remove:hover {
+            color: var(--red);
         }
 
         .save-row {
@@ -242,7 +412,7 @@
 
         .saved-note {
             font-size: 11px;
-            color: #7FD99B;
+            color: var(--green);
             opacity: 0;
             transition: opacity 0.2s ease;
         }
@@ -254,7 +424,7 @@
 
         <div class="masthead">
             <div>
-                <h1>Draft Intel</h1>
+                <h1>LoLens</h1>
                 <div class="subtitle">Settings</div>
             </div>
             <nav class="topnav">
@@ -269,14 +439,16 @@
             <div class="corner-bl"></div>
             <div class="panel-title">Comparison rank</div>
             <div class="field">
-                <label for="tierSelect">Compare your picks against</label>
-                <select id="tierSelect">
-                    <option value="EMERALD">Emerald (III/IV)</option>
-                    <option value="EMERALD+">Emerald+ (I/II)</option>
-                    <option value="DIAMOND">Diamond (III/IV)</option>
-                    <option value="DIAMOND+">Diamond+ (I/II)</option>
-                    <option value="MASTER_PLUS">Master+</option>
-                </select>
+                <label for="tierTrigger">Compare your picks against</label>
+                <div class="combo" id="tierCombo">
+                    <button type="button" class="combo-trigger" id="tierTrigger">
+                        <span id="tierTriggerLabel">—</span>
+                        <span class="chev">&#9662;</span>
+                    </button>
+                    <div class="combo-panel" id="tierPanel" hidden>
+                        <div class="combo-list" id="tierList"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -285,8 +457,16 @@
             <div class="corner-bl"></div>
             <div class="panel-title">Data window</div>
             <div class="field">
-                <label for="patchSelect">Population data to use</label>
-                <select id="patchSelect"></select>
+                <label for="patchTrigger">Population data to use</label>
+                <div class="combo" id="patchCombo">
+                    <button type="button" class="combo-trigger" id="patchTrigger">
+                        <span id="patchTriggerLabel">—</span>
+                        <span class="chev">&#9662;</span>
+                    </button>
+                    <div class="combo-panel" id="patchPanel" hidden>
+                        <div class="combo-list" id="patchList"></div>
+                    </div>
+                </div>
                 <div class="hint" id="patchHint"></div>
             </div>
         </div>
@@ -294,11 +474,31 @@
         <div class="frame panel">
             <div class="corner-tr"></div>
             <div class="corner-bl"></div>
-            <div class="panel-title">Champion pool</div>
+            <div class="panel-title">Champion pools</div>
+
+            <div class="role-tabs" id="roleTabs">
+                <button class="role-tab active" data-role="top">Top</button>
+                <button class="role-tab" data-role="jungle">Jungle</button>
+                <button class="role-tab" data-role="middle">Mid</button>
+                <button class="role-tab" data-role="bottom">Bottom</button>
+                <button class="role-tab" data-role="utility">Support</button>
+            </div>
+
             <div class="field">
-                <label for="poolSelect">Champions to get recommendations for (Cmd/Ctrl-click to select multiple)</label>
-                <select id="poolSelect" multiple></select>
-                <div class="hint" id="poolHint"></div>
+                <label for="champSearch">Add to the <span id="activeRoleLabel">TOP</span> pool</label>
+                <div class="combo" id="champCombo">
+                    <input type="text" class="combo-search-input" id="champSearch" placeholder="Search champions…"
+                        autocomplete="off">
+                    <div class="combo-panel" id="champPanel" hidden>
+                        <div class="combo-list" id="champList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label id="poolListLabel">Champions in TOP pool</label>
+                <div class="pool-chips" id="poolChips"></div>
+                <div class="hint" id="poolEmptyHint"></div>
             </div>
         </div>
 
@@ -309,18 +509,129 @@
     </div>
 
     <script>
+        // ---- nav ----
         document.querySelectorAll('.nav-btn').forEach((btn) => {
             btn.addEventListener('click', () => window.draftAPI.navigate(btn.dataset.page));
         });
 
-        const tierSelect = document.getElementById('tierSelect');
-        const patchSelect = document.getElementById('patchSelect');
-        const patchHint = document.getElementById('patchHint');
-        const poolSelect = document.getElementById('poolSelect');
-        const poolHint = document.getElementById('poolHint');
+        // ---- generic combo (custom dropdown) plumbing ----
+        // Every dropdown on this page shares a `.combo` wrapper around a trigger
+        // (a button for single-select rank/patch, a text input for the
+        // multi-add champion search) and a `.combo-panel`. Opening one closes
+        // any other open one; a document-level click listener closes whichever
+        // panel is open when the click lands outside its `.combo`; Escape closes
+        // and blurs whatever's focused.
 
-        // Encodes a patchFilter object into the single <select> value string
-        // this page uses, and back again on save.
+        function closeCombo(combo) {
+            const panel = combo.querySelector('.combo-panel');
+            const trigger = combo.querySelector('.combo-trigger, .combo-search-input');
+            if (panel) panel.hidden = true;
+            if (trigger) {
+                trigger.classList.remove('open');
+                if (trigger === document.activeElement) trigger.blur();
+            }
+        }
+
+        function closeAllCombosExcept(exceptCombo) {
+            document.querySelectorAll('.combo').forEach((combo) => {
+                if (combo !== exceptCombo) closeCombo(combo);
+            });
+        }
+
+        // Single-select dropdown: a button trigger that opens/closes on click.
+        function setupComboButton(triggerBtn, panelEl, { onOpen } = {}) {
+            const combo = triggerBtn.closest('.combo');
+            function open() {
+                closeAllCombosExcept(combo);
+                panelEl.hidden = false;
+                triggerBtn.classList.add('open');
+                if (onOpen) onOpen();
+            }
+            function close() { closeCombo(combo); }
+            triggerBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (panelEl.hidden) open(); else close();
+            });
+            return { open, close };
+        }
+
+        // Multi-add dropdown: a text input that opens on focus/click and filters
+        // as you type, rather than toggling on every click (typing shouldn't
+        // close it).
+        function setupComboInput(inputEl, panelEl, { onOpen } = {}) {
+            const combo = inputEl.closest('.combo');
+            function open() {
+                if (inputEl.disabled) return;
+                closeAllCombosExcept(combo);
+                panelEl.hidden = false;
+                if (onOpen) onOpen();
+            }
+            function close() { closeCombo(combo); }
+            inputEl.addEventListener('focus', open);
+            inputEl.addEventListener('click', (e) => { e.stopPropagation(); open(); });
+            return { open, close };
+        }
+
+        document.addEventListener('click', (e) => {
+            document.querySelectorAll('.combo').forEach((combo) => {
+                if (!combo.contains(e.target)) closeCombo(combo);
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            document.querySelectorAll('.combo').forEach((combo) => closeCombo(combo));
+        });
+
+        function rowHtml(value, label, selected) {
+            return `<div class="combo-row${selected ? ' selected' : ''}" data-value="${value}">
+      <span class="row-name">${label}</span>
+    </div>`;
+        }
+
+        // ---- comparison rank combo (single-select) ----
+        const TIER_OPTIONS = [
+            { value: 'EMERALD', label: 'Emerald (III/IV)' },
+            { value: 'EMERALD+', label: 'Emerald+ (I/II)' },
+            { value: 'DIAMOND', label: 'Diamond (III/IV)' },
+            { value: 'DIAMOND+', label: 'Diamond+ (I/II)' },
+            { value: 'MASTER_PLUS', label: 'Master+' }
+        ];
+        let selectedTier = 'EMERALD';
+
+        const tierTrigger = document.getElementById('tierTrigger');
+        const tierTriggerLabel = document.getElementById('tierTriggerLabel');
+        const tierPanel = document.getElementById('tierPanel');
+        const tierList = document.getElementById('tierList');
+
+        function renderTierList() {
+            tierList.innerHTML = TIER_OPTIONS.map((opt) => rowHtml(opt.value, opt.label, opt.value === selectedTier)).join('');
+            tierList.querySelectorAll('.combo-row').forEach((row) => {
+                row.addEventListener('click', () => {
+                    selectedTier = row.dataset.value;
+                    tierTriggerLabel.textContent = TIER_OPTIONS.find((o) => o.value === selectedTier).label;
+                    tierComboCtl.close();
+                });
+            });
+        }
+        const tierComboCtl = setupComboButton(tierTrigger, tierPanel, { onOpen: renderTierList });
+
+        // ---- data window combo (single-select) ----
+        let patchOptionsData = { presets: [], patches: [] };
+        let selectedPatchValue = 'all';
+
+        const patchTrigger = document.getElementById('patchTrigger');
+        const patchTriggerLabel = document.getElementById('patchTriggerLabel');
+        const patchPanel = document.getElementById('patchPanel');
+        const patchList = document.getElementById('patchList');
+        const patchHint = document.getElementById('patchHint');
+
+        function labelForPatchValue(value) {
+            const preset = patchOptionsData.presets.find((p) => p.value === value);
+            if (preset) return preset.label;
+            if (value.startsWith('patch:')) return 'Patch ' + value.slice(6);
+            return value;
+        }
         function encodePatchFilter(filter) {
             if (!filter || filter.type === 'all') return 'all';
             if (filter.type === 'days') return `days:${filter.days}`;
@@ -333,6 +644,125 @@
             if (value.startsWith('patch:')) return { type: 'patch', patch: value.slice(6) };
             return { type: 'all' };
         }
+        function renderPatchList() {
+            const rows = patchOptionsData.presets.map((p) => rowHtml(p.value, p.label, p.value === selectedPatchValue));
+            if (patchOptionsData.patches.length > 0) {
+                rows.push('<div class="combo-empty" style="font-style:normal; border-top:1px solid var(--gold-dim); padding-top:8px;">Specific patch</div>');
+                rows.push(...patchOptionsData.patches.map((p) => rowHtml('patch:' + p, 'Patch ' + p, ('patch:' + p) === selectedPatchValue)));
+            }
+            patchList.innerHTML = rows.join('');
+            patchList.querySelectorAll('.combo-row[data-value]').forEach((row) => {
+                row.addEventListener('click', () => {
+                    selectedPatchValue = row.dataset.value;
+                    patchTriggerLabel.textContent = labelForPatchValue(selectedPatchValue);
+                    patchComboCtl.close();
+                });
+            });
+        }
+        const patchComboCtl = setupComboButton(patchTrigger, patchPanel, { onOpen: renderPatchList });
+
+        // ---- champion pool combo (search-to-add, per role) ----
+        const ROLE_LABELS = { top: 'TOP', jungle: 'JUNGLE', middle: 'MID', bottom: 'BOTTOM', utility: 'SUPPORT' };
+        const ROLE_KEYS = ['top', 'jungle', 'middle', 'bottom', 'utility'];
+
+        let allChampions = []; // [{ name, iconUrl }]
+        let pools = { top: [], jungle: [], middle: [], bottom: [], utility: [] };
+        let activeRole = 'top';
+
+        const roleTabs = document.getElementById('roleTabs');
+        const activeRoleLabel = document.getElementById('activeRoleLabel');
+        const poolListLabel = document.getElementById('poolListLabel');
+        const poolChips = document.getElementById('poolChips');
+        const poolEmptyHint = document.getElementById('poolEmptyHint');
+
+        const champSearch = document.getElementById('champSearch');
+        const champPanel = document.getElementById('champPanel');
+        const champList = document.getElementById('champList');
+
+        function iconHtml(iconUrl) {
+            return iconUrl
+                ? `<img class="row-icon" src="${iconUrl}" alt="" onerror="this.style.visibility='hidden'">`
+                : `<span class="row-icon"></span>`;
+        }
+
+        // Champions already in the active pool are left out of the search
+        // results entirely (they're already shown as chips below), so there's
+        // no need for a checkmark or a toggle - picking a row always adds it.
+        function renderChampList(filterText) {
+            const q = (filterText || '').trim().toLowerCase();
+            const activePool = new Set(pools[activeRole]);
+            const available = allChampions.filter((c) => !activePool.has(c.name));
+            const filtered = q ? available.filter((c) => c.name.toLowerCase().includes(q)) : available;
+
+            if (filtered.length === 0) {
+                champList.innerHTML = `<div class="combo-empty">${available.length === 0 ? 'Every champion is already in this pool.' : 'No champions found.'}</div>`;
+                return;
+            }
+            champList.innerHTML = filtered.map((c) => `
+      <div class="combo-row" data-name="${c.name}">
+        ${iconHtml(c.iconUrl)}
+        <span class="row-name">${c.name}</span>
+      </div>`).join('');
+            champList.querySelectorAll('.combo-row').forEach((row) => {
+                row.addEventListener('click', () => addChampToPool(row.dataset.name));
+            });
+        }
+
+        function addChampToPool(name) {
+            const pool = pools[activeRole];
+            if (!pool.includes(name)) pool.push(name);
+            champSearch.value = '';
+            renderChampList('');
+            renderPoolChips();
+            champSearch.focus();
+        }
+
+        function renderPoolChips() {
+            const label = ROLE_LABELS[activeRole];
+            activeRoleLabel.textContent = label;
+            poolListLabel.textContent = `Champions in ${label} pool`;
+            champSearch.placeholder = `Search champions to add to ${label} pool…`;
+
+            const pool = pools[activeRole];
+            if (pool.length === 0) {
+                poolChips.innerHTML = '';
+                poolEmptyHint.textContent = `No champions in the ${label} pool yet — search above to add some.`;
+                return;
+            }
+            poolEmptyHint.textContent = `${pool.length} champion(s) in this pool.`;
+            poolChips.innerHTML = pool.map((name) => {
+                const champ = allChampions.find((c) => c.name === name);
+                const icon = champ && champ.iconUrl ? `<img src="${champ.iconUrl}" alt="" onerror="this.style.visibility='hidden'">` : '';
+                return `<span class="pool-chip">${icon}<span>${name}</span><span class="remove" data-name="${name}" title="Remove">&#10005;</span></span>`;
+            }).join('');
+            poolChips.querySelectorAll('.remove').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const name = btn.dataset.name;
+                    const pool = pools[activeRole];
+                    const idx = pool.indexOf(name);
+                    if (idx !== -1) pool.splice(idx, 1);
+                    renderPoolChips();
+                    if (!champPanel.hidden) renderChampList(champSearch.value);
+                });
+            });
+        }
+
+        roleTabs.querySelectorAll('.role-tab').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                activeRole = btn.dataset.role;
+                roleTabs.querySelectorAll('.role-tab').forEach((b) => b.classList.toggle('active', b === btn));
+                champSearch.value = '';
+                champComboCtl.close();
+                renderPoolChips();
+            });
+        });
+
+        champSearch.addEventListener('input', () => renderChampList(champSearch.value));
+
+        const champComboCtl = setupComboInput(champSearch, champPanel, {
+            onOpen: () => renderChampList(champSearch.value)
+        });
 
         async function init() {
             const [settings, championList, patchOptions] = await Promise.all([
@@ -341,49 +771,39 @@
                 window.draftAPI.getPatchOptions()
             ]);
 
-            tierSelect.value = settings.populationTier;
+            allChampions = championList; // [{ name, iconUrl }]
 
-            // Patch dropdown: presets first, then every real patch we've sampled.
-            const optionGroups = [];
-            optionGroups.push(patchOptions.presets.map((p) => `<option value="${p.value}">${p.label}</option>`).join(''));
-            if (patchOptions.patches.length > 0) {
-                optionGroups.push(
-                    `<optgroup label="Specific patch">` +
-                    patchOptions.patches.map((p) => `<option value="patch:${p}">Patch ${p}</option>`).join('') +
-                    `</optgroup>`
-                );
-            }
-            patchSelect.innerHTML = optionGroups.join('');
-            patchSelect.value = encodePatchFilter(settings.patchFilter);
-            // If the saved filter references a patch we no longer have (data was
-            // refreshed since), fall back to all-time rather than silently show
-            // the wrong selection.
-            if (patchSelect.value !== encodePatchFilter(settings.patchFilter)) {
-                patchSelect.value = 'all';
-            }
-            patchHint.textContent = patchOptions.patches.length === 0
+            pools = { top: [], jungle: [], middle: [], bottom: [], utility: [] };
+            ROLE_KEYS.forEach((key) => {
+                const saved = settings.championPools && settings.championPools[key];
+                pools[key] = Array.isArray(saved) ? [...saved] : [];
+            });
+
+            selectedTier = settings.populationTier;
+            tierTriggerLabel.textContent = (TIER_OPTIONS.find((o) => o.value === selectedTier) || {}).label || selectedTier;
+
+            patchOptionsData = patchOptions;
+            const encoded = encodePatchFilter(settings.patchFilter);
+            const encodedIsValid = patchOptionsData.presets.some((p) => p.value === encoded)
+                || (encoded.startsWith('patch:') && patchOptionsData.patches.includes(encoded.slice(6)));
+            selectedPatchValue = encodedIsValid ? encoded : 'all';
+            patchTriggerLabel.textContent = labelForPatchValue(selectedPatchValue);
+            patchHint.textContent = patchOptionsData.patches.length === 0
                 ? 'No per-patch data recorded yet — run fetch-population-data to start tracking patches.'
-                : patchOptions.patches.length + ' patch(es) recorded.';
+                : patchOptionsData.patches.length + ' patch(es) recorded.';
 
-            // Champion pool: native multi-select populated from Data Dragon.
-            if (championList.length === 0) {
-                poolHint.textContent = 'No champion data found — run `node scripts/fetch-champion-data.js` first.';
-                poolSelect.disabled = true;
-            } else {
-                poolSelect.innerHTML = championList.map((name) => `<option value="${name}">${name}</option>`).join('');
-                const currentPool = new Set(settings.championPool || []);
-                [...poolSelect.options].forEach((opt) => { opt.selected = currentPool.has(opt.value); });
-                poolHint.textContent = `${settings.championPool.length} champion(s) currently in your pool.`;
+            if (allChampions.length === 0) {
+                champSearch.disabled = true;
+                champSearch.placeholder = 'No champion data found — run fetch-champion-data.js';
             }
+
+            renderPoolChips();
         }
 
         document.getElementById('settingsSave').addEventListener('click', () => {
-            const championPool = [...poolSelect.selectedOptions].map((opt) => opt.value);
-            const populationTier = tierSelect.value;
-            const patchFilter = decodePatchFilter(patchSelect.value);
-
-            window.draftAPI.updateSettings({ championPool, populationTier, patchFilter });
-            poolHint.textContent = `${championPool.length} champion(s) currently in your pool.`;
+            const populationTier = selectedTier;
+            const patchFilter = decodePatchFilter(selectedPatchValue);
+            window.draftAPI.updateSettings({ championPools: pools, populationTier, patchFilter });
 
             const note = document.getElementById('settingsSavedNote');
             note.style.opacity = '1';

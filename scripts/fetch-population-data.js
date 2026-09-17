@@ -13,6 +13,17 @@
 // It's slower than the naive approach, but the numbers actually mean
 // what they claim to mean.
 //
+// PATCH/DATE TRACKING:
+// Every result is now tagged with the patch it was played on
+// (matchData.info.gameVersion, truncated to "major.minor", e.g. "15.18")
+// and the calendar date it was played (matchData.info.gameCreation, as a
+// UTC "YYYY-MM-DD" string). This only applies to the main tier baseline
+// (stats.tiers) - matchup/synergy data stays all-time, see the scope note
+// in lib/populationStats.js. byDate buckets older than DATE_BUCKET_RETENTION_DAYS
+// are pruned on every save so the file doesn't grow forever; byPatch
+// buckets are kept indefinitely since there are only a handful of patches
+// a year.
+//
 // USAGE:
 //   npm run fetch-population-data                        -> full sweep (all brackets), .env defaults
 //   npm run fetch-population-data -- diamond 100 5        -> just Diamond III/IV, 100 players, 5 games each
@@ -30,6 +41,7 @@ const PLATFORM = process.env.RIOT_PLATFORM || 'na1';
 const REGION = process.env.RIOT_REGION || 'americas';
 const DELAY_MS = 1200;
 const QUEUE = 'RANKED_SOLO_5x5';
+const DATE_BUCKET_RETENTION_DAYS = 90;
 
 // Every bucket we know how to fetch. A "bracket" CLI arg selects exactly
 // one of these; omitting it processes all of them (the old default sweep).
@@ -136,18 +148,54 @@ function loadStats() {
     return { capturedAt: null, tiers: {}, matchups: {}, synergies: {} };
 }
 
+// Drops byDate buckets older than DATE_BUCKET_RETENTION_DAYS across every
+// tier/champion so the file doesn't grow forever. byPatch buckets are
+// untouched - there are only a handful of patches a year, so keeping all
+// of them indefinitely is cheap and lets the settings page offer "any
+// patch we've ever sampled", not just recent ones.
+function pruneOldDateBuckets(stats) {
+    const cutoff = Date.now() - DATE_BUCKET_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    for (const champs of Object.values(stats.tiers || {})) {
+        for (const entry of Object.values(champs)) {
+            if (!entry.byDate) continue;
+            for (const dateStr of Object.keys(entry.byDate)) {
+                if (new Date(`${dateStr}T00:00:00Z`).getTime() < cutoff) {
+                    delete entry.byDate[dateStr];
+                }
+            }
+        }
+    }
+}
+
 function saveStats(stats) {
+    pruneOldDateBuckets(stats);
     stats.capturedAt = new Date().toISOString();
     fs.writeFileSync(outputPath, JSON.stringify(stats, null, 2));
 }
 
-function recordResult(stats, tier, championName, win) {
+// patch: "15.18"-style string, derived from matchData.info.gameVersion.
+// dateStr: "YYYY-MM-DD" UTC, derived from matchData.info.gameCreation.
+function recordResult(stats, tier, championName, win, patch, dateStr) {
     if (!stats.tiers[tier]) stats.tiers[tier] = {};
     if (!stats.tiers[tier][championName]) {
-        stats.tiers[tier][championName] = { games: 0, wins: 0 };
+        stats.tiers[tier][championName] = { games: 0, wins: 0, byPatch: {}, byDate: {} };
     }
-    stats.tiers[tier][championName].games += 1;
-    if (win) stats.tiers[tier][championName].wins += 1;
+    const entry = stats.tiers[tier][championName];
+
+    entry.games += 1;
+    if (win) entry.wins += 1;
+
+    if (patch) {
+        if (!entry.byPatch[patch]) entry.byPatch[patch] = { games: 0, wins: 0 };
+        entry.byPatch[patch].games += 1;
+        if (win) entry.byPatch[patch].wins += 1;
+    }
+
+    if (dateStr) {
+        if (!entry.byDate[dateStr]) entry.byDate[dateStr] = { games: 0, wins: 0 };
+        entry.byDate[dateStr].games += 1;
+        if (win) entry.byDate[dateStr].wins += 1;
+    }
 }
 
 function recordMatchup(stats, tier, championName, enemyChampionName, win) {
@@ -180,7 +228,7 @@ function recordSynergy(stats, tier, championName, allyChampionName, win) {
 // the same shape after. Kept intentionally dumb (counts only, no need to
 // diff win/loss separately for a progress summary).
 
-// stats.tiers is tier -> champion -> {games, wins} (2 levels deep).
+// stats.tiers is tier -> champion -> {games, wins, byPatch, byDate}.
 function snapshotTierGames(tiers) {
     const snapshot = {};
     for (const [tier, champs] of Object.entries(tiers || {})) {
@@ -289,6 +337,21 @@ async function resolvePuuid(entry) {
     }
 }
 
+// gameVersion looks like "15.18.123.456" - "major.minor" is what people
+// mean by "the patch" (15.18.1 and 15.18.2 hotfixes are the same patch
+// for balance purposes).
+function patchFromGameVersion(gameVersion) {
+    if (!gameVersion) return null;
+    const parts = gameVersion.split('.');
+    if (parts.length < 2) return null;
+    return `${parts[0]}.${parts[1]}`;
+}
+
+function dateStrFromGameCreation(gameCreation) {
+    if (!gameCreation) return null;
+    return new Date(gameCreation).toISOString().slice(0, 10);
+}
+
 async function processSeedPlayer(puuid, tierLabel, stats, state) {
     if (!state.playerGameCounts) state.playerGameCounts = {};
     const alreadyCounted = state.playerGameCounts[puuid] || 0;
@@ -318,7 +381,10 @@ async function processSeedPlayer(puuid, tierLabel, stats, state) {
             const me = participants.find((p) => p.puuid === puuid);
 
             if (me) {
-                recordResult(stats, tierLabel, me.championName, me.win);
+                const patch = patchFromGameVersion(matchData.info.gameVersion);
+                const dateStr = dateStrFromGameCreation(matchData.info.gameCreation);
+
+                recordResult(stats, tierLabel, me.championName, me.win, patch, dateStr);
                 state.playerGameCounts[puuid] = (state.playerGameCounts[puuid] || 0) + 1;
 
                 if (me.teamPosition) {

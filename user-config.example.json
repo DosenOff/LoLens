@@ -1,11 +1,11 @@
 {
-    "championPool": [
-        "Zoe",
-        "Taliyah",
-        "Yone",
-        "Ahri",
-        "Swain",
-        "Gnar"
-    ],
-    "populationTier": "EMERALD"
+    "championPools": {
+        "top": ["Gnar"],
+        "jungle": [],
+        "middle": ["Zoe", "Taliyah", "Ahri", "Swain"],
+        "bottom": [],
+        "utility": []
+    },
+    "populationTier": "EMERALD",
+    "patchFilter": { "type": "all" }
 }

@@ -39,24 +39,43 @@ deliberately modest sample, not a comprehensive statistic — sample sizes
 are shown alongside every number so you can judge confidence yourself.
 
 ## Running it locally
-
+ 
 ```
 npm install
 cp .env.example .env   # then fill in your Riot API key and Riot ID
 npm start
 ```
-
+ 
 To pull your own match history for personal matchup stats:
 ```
 npm run fetch-champion-data
 npm run fetch-match-ids
 npm run fetch-match-details
 ```
-
+ 
 To build the population baseline (rerun anytime to grow the sample):
 ```
 npm run fetch-population-data
 ```
+ 
+To get real rank emblem art for the overlay's tier badge (one-time setup -
+this is a static Riot-hosted asset, not something that needs regenerating
+per patch):
+```
+curl -fL https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip -o ranked-emblems.zip
+mkdir -p assets/rank-emblems
+unzip ranked-emblems.zip -d assets/rank-emblems
+cd "assets/rank-emblems/Ranked Emblems Latest"
+for f in Rank=*.png; do
+  name=$(echo "$f" | sed -E 's/Rank=(.*)\.png/\1/' | tr '[:upper:]' '[:lower:]')
+  mv "$f" "../${name}.png"
+done
+cd ..
+rm -rf "Ranked Emblems Latest" "Tier Wings" "Wings"
+```
+Without this, the overlay's tier badge falls back to a plain gold diamond
+rather than the real emblem - it degrades gracefully, it just won't look
+as sharp.
 
 ## Roadmap
 

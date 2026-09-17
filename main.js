@@ -14,7 +14,7 @@ const { app, BrowserWindow, Tray, Menu, screen, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { startWatching } = require('./lib/watcher');
-const { championName, championIconUrl, listAllChampionNames } = require('./lib/championData');
+const { championName, championIconUrl, listAllChampions } = require('./lib/championData');
 const { mapSession } = require('./lib/sessionMapper');
 const { getMatchupsAgainst, getMatchupStats } = require('./lib/matchupStats');
 const {
@@ -25,12 +25,14 @@ const {
 } = require('./lib/populationStats');
 const { getPoolRecommendations } = require('./lib/recommendations');
 const { loadUserConfig, saveUserConfig } = require('./lib/userConfig');
+const { rankEmblemUrl } = require('./lib/rankEmblem');
 
 // User-editable settings: champion pool, which population tier to compare
 // against, and which patch/date window of population data to use. Loaded
 // from user-config.json, changeable live from the settings page.
 let userConfig = loadUserConfig();
-console.log(`Loaded user config: ${userConfig.championPool.length} champions in pool, tier=${userConfig.populationTier}, patchFilter=${JSON.stringify(userConfig.patchFilter)}`);
+const poolCounts = Object.entries(userConfig.championPools).map(([role, list]) => `${role}:${list.length}`).join(', ');
+console.log(`Loaded user config: pools[${poolCounts}], tier=${userConfig.populationTier}, patchFilter=${JSON.stringify(userConfig.patchFilter)}`);
 
 // Load your personal match history once at startup. If it doesn't exist yet
 // (you haven't run fetch-match-ids/fetch-match-details), the app still works,
@@ -93,17 +95,10 @@ function createDashboardWindow() {
   dashboardWindow.on('closed', () => { dashboardWindow = null; });
 }
 
-// Toast window sizing/timing must stay in sync with src/toast.html:
-// - 250x54 matches the compact two-line (headline + subtext) layout and
-//   the .inset/height:100% chain that centers content inside it.
-// - 3200ms matches the CSS @keyframes fade-in/hold/fade-out animation on
-//   .toast in that file. If you change one, change the other, or the
-//   window will either close mid-fade or sit fully transparent for a
-//   moment before actually closing.
 function showToast() {
   if (toastWindow) return; // already showing
 
-  const { x, y, width, height } = topLeftPosition(250, 54);
+  const { x, y, width, height } = topLeftPosition(220, 46);
   toastWindow = new BrowserWindow({
     x, y, width, height,
     frame: false,
@@ -121,7 +116,7 @@ function showToast() {
       toastWindow.close();
       toastWindow = null;
     }
-  }, 3200);
+  }, 2500);
 }
 
 // Overlay height starts in "list" mode and grows/shrinks from there - both
@@ -352,9 +347,29 @@ app.whenReady().then(() => {
           ...session.bans.theirs
         ].filter(Boolean)
       );
-      const availablePool = userConfig.championPool.filter(
+
+      // Champion pools are now per-role (top/jungle/middle/bottom/utility),
+      // set from the Settings page. Use whichever pool matches the local
+      // player's assigned lane for this draft (myPick.position, from the
+      // LCU's assignedPosition - same values sessionMapper.js already
+      // passes through). If no lane is assigned yet (early in champ select,
+      // or a custom game that never assigns one), fall back to the union of
+      // every role's pool, deduplicated, so recommendations aren't just
+      // empty while we wait.
+      const myPositionKey = myPick && myPick.position ? myPick.position.toLowerCase() : null;
+      let sourcePool;
+      let poolSourceLabel;
+      if (myPositionKey && userConfig.championPools[myPositionKey] && userConfig.championPools[myPositionKey].length > 0) {
+        sourcePool = userConfig.championPools[myPositionKey];
+        poolSourceLabel = myPositionKey;
+      } else {
+        sourcePool = [...new Set(Object.values(userConfig.championPools).flat())];
+        poolSourceLabel = 'all';
+      }
+      const availablePool = sourcePool.filter(
         (champion) => !unavailableChampions.has(champion)
       );
+      session.recommendationsPoolLabel = poolSourceLabel; // 'top' | 'jungle' | 'middle' | 'bottom' | 'utility' | 'all'
 
       session.recommendations = getPoolRecommendations(availablePool, {
         myMatches,
@@ -373,6 +388,7 @@ app.whenReady().then(() => {
         }
       }));
       session.populationTier = userConfig.populationTier; // so the UI can show current tier
+      session.tierEmblemUrl = rankEmblemUrl(userConfig.populationTier); // real Riot rank emblem for the footer
       session.patchFilter = userConfig.patchFilter; // so the UI can show current data window
 
       // Push to the dashboard window if it's open and showing the home page.
@@ -420,11 +436,11 @@ ipcMain.on('navigate-to', (event, page) => {
   if (dashboardWindow) dashboardWindow.loadFile(`src/${page}.html`);
 });
 
-// Settings page: every champion name Data Dragon knows about, for the
-// champion-pool <select multiple>. [] if champions.json hasn't been
-// fetched yet - the settings page renders a hint in that case rather
-// than an empty-looking picker with no explanation.
-ipcMain.handle('get-champion-list', () => listAllChampionNames());
+// Settings page: every champion Data Dragon knows about, each with an
+// icon URL, for the custom searchable champion-pool dropdown. [] if
+// champions.json hasn't been fetched yet - the settings page renders a
+// hint in that case rather than an empty-looking picker with no explanation.
+ipcMain.handle('get-champion-list', () => listAllChampions());
 
 // Settings page: what patch/date-window options are actually available
 // to pick from, given what's in the population data right now. Presets

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Draft Intel</title>
+    <title>LoLens</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
         href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -607,7 +607,7 @@
 
         <div class="masthead">
             <div>
-                <h1>Draft Intel</h1>
+                <h1>LoLens</h1>
                 <div class="subtitle">Live champion select &amp; historical matchup analysis</div>
             </div>
             <div style="display:flex; align-items:center;">
@@ -719,6 +719,7 @@
         // mistaken for confirmed data.
         const GUESSED_LANE_ORDER = ['top', 'jungle', 'middle', 'bottom', 'support'];
         const TIER_LABELS = { EMERALD: 'Emerald', 'EMERALD+': 'Emerald+', DIAMOND: 'Diamond', 'DIAMOND+': 'Diamond+', MASTER_PLUS: 'Master+' };
+        const POOL_LABELS = { top: 'top pool', jungle: 'jungle pool', middle: 'mid pool', bottom: 'bottom pool', utility: 'support pool', all: 'all pools · no lane yet' };
 
         function abbreviate(name) {
             return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
@@ -874,7 +875,8 @@
 
             if (recs.length === 0) { panel.style.display = 'none'; return; }
             panel.style.display = 'block';
-            tierNote.textContent = `vs. ${TIER_LABELS[session.populationTier] || session.populationTier} · ${patchFilterLabel(session.patchFilter)}`;
+            const poolLabel = POOL_LABELS[session.recommendationsPoolLabel] || '';
+            tierNote.textContent = `vs. ${TIER_LABELS[session.populationTier] || session.populationTier} · ${patchFilterLabel(session.patchFilter)}${poolLabel ? ' · ' + poolLabel : ''}`;
 
             list.innerHTML = recs.map((r, i) => {
                 const b = r.breakdown;

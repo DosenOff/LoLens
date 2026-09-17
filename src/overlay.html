@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --navy-deep: #05070C;
@@ -254,6 +256,7 @@
             letter-spacing: 1px;
             text-transform: uppercase;
             color: var(--parchment);
+            line-height: 1;
         }
 
         .role-chip .vs {
@@ -261,6 +264,7 @@
             font-size: 10px;
             text-transform: uppercase;
             color: var(--parchment-faint);
+            line-height: 1;
         }
 
         .enemy-comp {
@@ -272,6 +276,16 @@
             width: 24px;
             height: 24px;
             font-size: 8px;
+        }
+
+        /* Empty role slot shown before that position's pick comes in -
+           dimmer border/background than a filled portrait, and holds a
+           small hand-drawn role glyph (not an official Riot icon - just a
+           stand-in) instead of a champion image. */
+        .role-placeholder {
+            background: rgba(0, 0, 0, 0.2);
+            border-color: rgba(200, 155, 60, 0.2);
+            color: var(--parchment-faint);
         }
 
         .context-empty {
@@ -439,9 +453,17 @@
             font-weight: 600;
         }
 
-        .row-score .total.pos { color: var(--green); }
-        .row-score .total.neg { color: var(--red); }
-        .row-score .total.dim { color: var(--parchment-dim); }
+        .row-score .total.pos {
+            color: var(--green);
+        }
+
+        .row-score .total.neg {
+            color: var(--red);
+        }
+
+        .row-score .total.dim {
+            color: var(--parchment-dim);
+        }
 
         .row-score .breakdown {
             margin-top: 2px;
@@ -452,9 +474,17 @@
             font-size: 9px;
         }
 
-        .row-score .breakdown .pos { color: var(--green); }
-        .row-score .breakdown .neg { color: var(--red); }
-        .row-score .breakdown .dim { color: var(--parchment-faint); }
+        .row-score .breakdown .pos {
+            color: var(--green);
+        }
+
+        .row-score .breakdown .neg {
+            color: var(--red);
+        }
+
+        .row-score .breakdown .dim {
+            color: var(--parchment-faint);
+        }
 
         .empty {
             font-family: 'Spectral', serif;
@@ -511,9 +541,17 @@
             margin-top: 2px;
         }
 
-        .stat-value.pos { color: var(--green); }
-        .stat-value.neg { color: var(--red); }
-        .stat-value.dim { color: var(--parchment-dim); }
+        .stat-value.pos {
+            color: var(--green);
+        }
+
+        .stat-value.neg {
+            color: var(--red);
+        }
+
+        .stat-value.dim {
+            color: var(--parchment-dim);
+        }
 
         .formula-note {
             font-family: 'JetBrains Mono', monospace;
@@ -534,7 +572,9 @@
             margin: 14px 0 6px;
         }
 
-        .section-title:first-of-type { margin-top: 0; }
+        .section-title:first-of-type {
+            margin-top: 0;
+        }
 
         .detail-row {
             display: flex;
@@ -574,8 +614,13 @@
             font-weight: 500;
         }
 
-        .detail-row .wr.pos { color: var(--green); }
-        .detail-row .wr.neg { color: var(--red); }
+        .detail-row .wr.pos {
+            color: var(--green);
+        }
+
+        .detail-row .wr.neg {
+            color: var(--red);
+        }
 
         .detail-row .n {
             flex-shrink: 0;
@@ -626,6 +671,7 @@
             letter-spacing: 1px;
             text-transform: uppercase;
             color: var(--parchment-dim);
+            line-height: 1;
         }
 
         .footer-tier {
@@ -634,6 +680,19 @@
             letter-spacing: 0.5px;
             color: var(--gold-bright);
             text-transform: uppercase;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .tier-icon {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            margin-right: 6px;
+            border: 1px solid var(--gold-bright);
+            background: linear-gradient(160deg, var(--gold-bright), var(--gold));
+            transform: rotate(45deg);
         }
     </style>
 </head>
@@ -659,7 +718,8 @@
 
             <div id="content"></div>
 
-            <button class="collapse-tab" id="collapseBtn" aria-label="Collapse overlay" title="Collapse">&#9662;</button>
+            <button class="collapse-tab" id="collapseBtn" aria-label="Collapse overlay"
+                title="Collapse">&#9662;</button>
         </div>
     </div>
 
@@ -671,6 +731,23 @@
         const SHORT_POSITION_LABELS = { top: 'TOP', jungle: 'JG', middle: 'MID', bottom: 'BOT', utility: 'SUP' };
         const TIER_LABELS = { EMERALD: 'Emerald', 'EMERALD+': 'Emerald+', DIAMOND: 'Diamond', 'DIAMOND+': 'Diamond+', MASTER_PLUS: 'Master+' };
         const LOW_SAMPLE_THRESHOLD = 200;
+
+        // Standard role order for the always-5-slots enemy comp row.
+        const ROLE_ORDER = ['top', 'jungle', 'middle', 'bottom', 'utility'];
+
+        // Small hand-drawn stand-in glyphs for each role, shown in an empty
+        // slot until that position's pick comes in. These are NOT official
+        // Riot position icons (no access to that asset set here) - just
+        // simple line icons in the app's own gold/parchment style, easy to
+        // swap for real ones later. stroke="currentColor" so they pick up
+        // whatever color the surrounding .portrait/.role-placeholder sets.
+        const ROLE_ICONS = {
+            top: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 11 L8 4 L12 11"/></svg>',
+            jungle: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v11M5 5h6M6 8h4"/></svg>',
+            middle: '<svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4.3" y="4.3" width="7.4" height="7.4" transform="rotate(45 8 8)"/></svg>',
+            bottom: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 5 L8 12 L12 5"/></svg>',
+            utility: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2 L13 4.5 V8 C13 11.5 8 14 8 14 C8 14 3 11.5 3 8 V4.5 Z"/></svg>'
+        };
 
         let lastSession = null;
         let view = 'list'; // 'list' | 'detail'
@@ -702,6 +779,19 @@
                     img.parentElement.textContent = img.dataset.fallback;
                 }, { once: true });
             });
+        }
+
+        // Swaps a broken rank-emblem <img> (e.g. before the fetch/flatten
+        // setup steps have been run - see README) for the plain gold-diamond
+        // CSS fallback instead of a browser broken-image icon.
+        function wireTierIconFallback() {
+            const img = document.querySelector('.tier-icon[data-fallback]');
+            if (!img) return;
+            img.addEventListener('error', () => {
+                const fallback = document.createElement('span');
+                fallback.className = 'tier-icon tier-icon-fallback';
+                img.replaceWith(fallback);
+            }, { once: true });
         }
 
         function formatTime(totalSeconds) {
@@ -787,20 +877,50 @@
             const roleText = posKey ? (SHORT_POSITION_LABELS[posKey] || posKey.toUpperCase()) : '—';
             const roleChip = `<div class="role-chip"><span class="role-text">${roleText}</span><span class="vs">vs</span></div>`;
 
-            const enemyPicks = (session.theirTeam || []).filter((p) => p.championName);
-            const rightSide = enemyPicks.length > 0
-                ? `<div class="enemy-comp">${enemyPicks.map((p) => portraitHtml(p.championName, p.iconUrl)).join('')}</div>`
-                : '<span class="context-empty">waiting for enemy picks...</span>';
+            // Always show exactly 5 slots in TOP/JG/MID/BOT/SUP order so the
+            // row has a stable shape from the moment champ select opens,
+            // rather than growing one portrait at a time as picks land.
+            // Each slot shows the real champion portrait once picked, and a
+            // small role glyph placeholder until then.
+            const theirTeam = session.theirTeam || [];
+            const byPosition = {};
+            const unassigned = [];
+            for (const p of theirTeam) {
+                const key = p.position ? p.position.toLowerCase() : null;
+                if (key && ROLE_ORDER.includes(key) && !byPosition[key]) {
+                    byPosition[key] = p;
+                } else {
+                    unassigned.push(p);
+                }
+            }
+
+            const slotsHtml = ROLE_ORDER.map((role) => {
+                // Custom-game bots/enemies can come back with a blank
+                // assignedPosition (same caveat as the dashboard's
+                // GUESSED_LANE_ORDER) - fall back to filling remaining
+                // slots with whatever unassigned picks are left, in order.
+                const pick = byPosition[role] || (unassigned.length > 0 ? unassigned.shift() : null);
+                if (pick && pick.championName) {
+                    return portraitHtml(pick.championName, pick.iconUrl);
+                }
+                const label = SHORT_POSITION_LABELS[role] || role.toUpperCase();
+                return `<span class="portrait role-placeholder" title="${label}">${ROLE_ICONS[role]}</span>`;
+            }).join('');
+
+            const rightSide = `<div class="enemy-comp">${slotsHtml}</div>`;
 
             return `<div class="context-bar">${roleChip}${rightSide}</div>`;
         }
 
         function renderFooter(session) {
             const tierLabel = TIER_LABELS[session.populationTier] || session.populationTier || '—';
+            const emblem = session.tierEmblemUrl
+                ? `<img class="tier-icon" src="${session.tierEmblemUrl}" alt="" data-fallback="1">`
+                : `<span class="tier-icon tier-icon-fallback"></span>`;
             return `
         <div class="footer-bar">
             <div class="footer-state"><span class="dot"></span><span class="state-text">Champion Select</span></div>
-            <span class="footer-tier">${tierLabel}</span>
+            <span class="footer-tier">${emblem}${tierLabel}</span>
         </div>`;
         }
 
