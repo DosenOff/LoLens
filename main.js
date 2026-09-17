@@ -5,24 +5,32 @@
 //  - A small toast pops up top-left when League is detected running.
 //  - A compact overlay pops up top-left during champion select, and
 //    disappears when champ select ends.
-//  - The full dashboard (src/index.html) is still available from the
-//    tray menu if you want to open it manually.
+//  - The full dashboard is still available from the tray menu, and is now
+//    a small multi-page window (src/home.html, src/settings.html,
+//    src/about.html) navigated via the icons in its top-right corner
+//    rather than a single long scrolling page with an inline settings panel.
 
 const { app, BrowserWindow, Tray, Menu, screen, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { startWatching } = require('./lib/watcher');
-const { championName, championIconUrl } = require('./lib/championData');
+const { championName, championIconUrl, listAllChampionNames } = require('./lib/championData');
 const { mapSession } = require('./lib/sessionMapper');
 const { getMatchupsAgainst, getMatchupStats } = require('./lib/matchupStats');
-const { getPopulationStats, getPopulationMatchupStats, getPopulationSynergyStats } = require('./lib/populationStats');
+const {
+  getPopulationStats,
+  getPopulationMatchupStats,
+  getPopulationSynergyStats,
+  getAvailablePatches
+} = require('./lib/populationStats');
 const { getPoolRecommendations } = require('./lib/recommendations');
 const { loadUserConfig, saveUserConfig } = require('./lib/userConfig');
 
-// User-editable settings: champion pool + which population tier to compare
-// against. Loaded from user-config.json, changeable live from the UI.
+// User-editable settings: champion pool, which population tier to compare
+// against, and which patch/date window of population data to use. Loaded
+// from user-config.json, changeable live from the settings page.
 let userConfig = loadUserConfig();
-console.log(`Loaded user config: ${userConfig.championPool.length} champions in pool, tier=${userConfig.populationTier}`);
+console.log(`Loaded user config: ${userConfig.championPool.length} champions in pool, tier=${userConfig.populationTier}, patchFilter=${JSON.stringify(userConfig.patchFilter)}`);
 
 // Load your personal match history once at startup. If it doesn't exist yet
 // (you haven't run fetch-match-ids/fetch-match-details), the app still works,
@@ -53,6 +61,7 @@ let toastWindow = null;
 let overlayWindow = null;
 
 const CORNER_MARGIN = 16;
+const DASHBOARD_PAGES = ['home', 'settings', 'about'];
 
 function topLeftPosition(width, height) {
   const { workArea } = screen.getPrimaryDisplay();
@@ -65,8 +74,13 @@ function createDashboardWindow() {
     return;
   }
   dashboardWindow = new BrowserWindow({
-    width: 1080,
-    height: 820,
+    // Compact "utility app" sizing (think Unity Hub's project list, not a
+    // full dashboard) - the nav icons in the top-right corner swap pages
+    // within this one window rather than opening new windows.
+    width: 900,
+    height: 600,
+    minWidth: 720,
+    minHeight: 480,
     backgroundColor: '#0A0E14',
     title: 'LoLens',
     webPreferences: {
@@ -75,10 +89,17 @@ function createDashboardWindow() {
       nodeIntegration: false
     }
   });
-  dashboardWindow.loadFile('src/index.html');
+  dashboardWindow.loadFile('src/home.html');
   dashboardWindow.on('closed', () => { dashboardWindow = null; });
 }
 
+// Toast window sizing/timing must stay in sync with src/toast.html:
+// - 250x54 matches the compact two-line (headline + subtext) layout and
+//   the .inset/height:100% chain that centers content inside it.
+// - 3200ms matches the CSS @keyframes fade-in/hold/fade-out animation on
+//   .toast in that file. If you change one, change the other, or the
+//   window will either close mid-fade or sit fully transparent for a
+//   moment before actually closing.
 function showToast() {
   if (toastWindow) return; // already showing
 
@@ -247,9 +268,10 @@ app.whenReady().then(() => {
       // Compute real personal matchup stats for every enemy champion
       // that's actually been picked so far. Keyed by champion name so the
       // UI can just do matchupData[championName] - same shape the old
-      // mock data used. Now also includes the population matchup number
-      // for each entry (v2) - how the population does in that exact
-      // matchup, not just the champion overall.
+      // mock data used. Also includes the population matchup number for
+      // each entry - how the population does in that exact matchup, not
+      // just the champion overall. (Matchup data is all-time - not
+      // affected by the patch/date filter; see lib/populationStats.js.)
       const matchupData = {};
       for (const p of session.theirTeam) {
         if (p.championName && !matchupData[p.championName]) {
@@ -271,13 +293,19 @@ app.whenReady().then(() => {
       session.matchupData = matchupData;
 
       // Personal vs. population comparison for whichever champion the
-      // local player has actually picked (if any).
+      // local player has actually picked (if any). The population side
+      // respects the user's patch/date filter from settings.
       const myPick = session.myTeam.find((p) => p.cellId === session.localPlayerCellId);
       session.personalVsPopulation = null;
       session.synergyData = [];
       if (myPick && myPick.championName) {
         const personal = getMatchupStats(myMatches, { myChampion: myPick.championName });
-        const population = getPopulationStats(populationStats, userConfig.populationTier, myPick.championName);
+        const population = getPopulationStats(
+          populationStats,
+          userConfig.populationTier,
+          myPick.championName,
+          userConfig.patchFilter
+        );
         session.personalVsPopulation = {
           championName: myPick.championName,
           tier: userConfig.populationTier,
@@ -285,7 +313,8 @@ app.whenReady().then(() => {
           population
         };
 
-        // v3: population synergy between your pick and each already-picked ally.
+        // Population synergy between your pick and each already-picked ally
+        // (all-time - see note above).
         const allies = session.myTeam.filter(
           (p) => p.cellId !== session.localPlayerCellId && p.championName
         );
@@ -332,7 +361,8 @@ app.whenReady().then(() => {
         populationStats,
         tier: userConfig.populationTier,
         enemyChampions: currentEnemyPicks,
-        allyChampions: currentAllyPicks
+        allyChampions: currentAllyPicks,
+        filter: userConfig.patchFilter
       }).map((r) => ({
         ...r,
         iconUrl: championIconUrl(r.champion),
@@ -342,9 +372,10 @@ app.whenReady().then(() => {
           synergyList: r.breakdown.synergyList.map((s) => ({ ...s, iconUrl: championIconUrl(s.championName) }))
         }
       }));
-      session.populationTier = userConfig.populationTier; // so the UI can show/edit current tier
+      session.populationTier = userConfig.populationTier; // so the UI can show current tier
+      session.patchFilter = userConfig.patchFilter; // so the UI can show current data window
 
-      // Push to the dashboard window if it's open.
+      // Push to the dashboard window if it's open and showing the home page.
       if (dashboardWindow) {
         dashboardWindow.webContents.send('session-update', session);
       }
@@ -380,8 +411,38 @@ app.on('window-all-closed', () => {
   // tray menu's "Quit LoLens".
 });
 
-// Renderer -> main: the dashboard's settings panel pushes updates here.
-// Accepts a partial update, e.g. { championPool: [...] } or { populationTier: 'DIAMOND' }.
+// Dashboard nav icons (home/gear/about) -> swap the page loaded into the
+// one dashboard window, rather than opening separate windows. Validated
+// against an allowlist since this handles an ipcRenderer.send from a
+// (trusted, but still) renderer.
+ipcMain.on('navigate-to', (event, page) => {
+  if (!DASHBOARD_PAGES.includes(page)) return;
+  if (dashboardWindow) dashboardWindow.loadFile(`src/${page}.html`);
+});
+
+// Settings page: every champion name Data Dragon knows about, for the
+// champion-pool <select multiple>. [] if champions.json hasn't been
+// fetched yet - the settings page renders a hint in that case rather
+// than an empty-looking picker with no explanation.
+ipcMain.handle('get-champion-list', () => listAllChampionNames());
+
+// Settings page: what patch/date-window options are actually available
+// to pick from, given what's in the population data right now. Presets
+// (all-time / last 30 / last 90 days) are always offered since they don't
+// depend on what patches happen to be sampled; the patch list is whatever
+// scripts/fetch-population-data.js has actually recorded.
+ipcMain.handle('get-patch-options', () => ({
+  presets: [
+    { value: 'all', label: 'All-time' },
+    { value: 'days:30', label: 'Last 30 days' },
+    { value: 'days:90', label: 'Last 90 days' }
+  ],
+  patches: getAvailablePatches(populationStats)
+}));
+
+// Renderer -> main: the settings page pushes updates here.
+// Accepts a partial update, e.g. { championPool: [...] }, { populationTier: 'DIAMOND' },
+// or { patchFilter: { type: 'days', days: 30 } }.
 ipcMain.on('update-settings', (event, updates) => {
   userConfig = { ...userConfig, ...updates };
   saveUserConfig(userConfig);
@@ -390,7 +451,7 @@ ipcMain.on('update-settings', (event, updates) => {
   // no need to force a re-send here.
 });
 
-// Renderer asks for current settings when the dashboard first opens.
+// Renderer asks for current settings when the settings page first opens.
 ipcMain.handle('get-settings', () => userConfig);
 
 // Overlay -> main: grow/shrink the overlay window to fit its content
