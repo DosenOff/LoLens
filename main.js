@@ -57,6 +57,37 @@ try {
   console.log('No data/population-stats.json found yet — population comparison will be empty until you run fetch-population-data.');
 }
 
+// Which enemy (by cellId, not champion name - so it survives them swapping
+// picks) the player has told us they're laning against, this draft. null
+// means "not manually set yet - auto-guess by assigned position instead."
+// Reset whenever a champ select session ends so the next draft starts
+// fresh rather than carrying a stale opponent forward.
+let laneOpponentOverrideCellId = null;
+
+// Resolves which enemy the player is actually laning against, in priority
+// order: (1) a still-valid manual override - "still valid" meaning that
+// cellId is still on the enemy team AND has actually picked a champion
+// (clicking an empty/unassigned slot isn't a choice about anything yet);
+// (2) auto-guess via the LCU's assignedPosition, matching the player's own
+// lane; (3) fallback to the first enemy with a pick, so there's still
+// something sensible to show/highlight before position data exists (early
+// draft, some custom games never assign one at all). Returns null only
+// when no enemy has picked anything yet.
+function resolveLaneOpponentCellId(theirTeam, myPositionKey, overrideCellId) {
+  if (overrideCellId !== null) {
+    const stillValid = theirTeam.find((p) => p.cellId === overrideCellId && p.championName);
+    if (stillValid) return overrideCellId;
+  }
+  if (myPositionKey) {
+    const positionMatch = theirTeam.find(
+      (p) => p.championName && p.position && p.position.toLowerCase() === myPositionKey
+    );
+    if (positionMatch) return positionMatch.cellId;
+  }
+  const anyPick = theirTeam.find((p) => p.championName);
+  return anyPick ? anyPick.cellId : null;
+}
+
 let tray = null;
 let dashboardWindow = null;
 let toastWindow = null;
@@ -98,7 +129,7 @@ function createDashboardWindow() {
 function showToast() {
   if (toastWindow) return; // already showing
 
-  const { x, y, width, height } = topLeftPosition(220, 46);
+  const { x, y, width, height } = topLeftPosition(250, 54);
   toastWindow = new BrowserWindow({
     x, y, width, height,
     frame: false,
@@ -116,7 +147,7 @@ function showToast() {
       toastWindow.close();
       toastWindow = null;
     }
-  }, 2500);
+  }, 3200);
 }
 
 // Overlay height starts in "list" mode and grows/shrinks from there - both
@@ -260,6 +291,20 @@ app.whenReady().then(() => {
         iconUrl: p.championName ? championIconUrl(p.championName) : null
       }));
 
+      // Who the player is actually laning against - resolved once, up
+      // front, so both the report panel and the recommendation engine's
+      // Counter Δ agree on the same person rather than each guessing
+      // independently. See resolveLaneOpponentCellId() for the priority
+      // order (manual override > position match > first enemy pick).
+      const myPick = session.myTeam.find((p) => p.cellId === session.localPlayerCellId);
+      const myPositionKey = myPick && myPick.position ? myPick.position.toLowerCase() : null;
+      const laneOpponentCellId = resolveLaneOpponentCellId(session.theirTeam, myPositionKey, laneOpponentOverrideCellId);
+      const laneOpponent = laneOpponentCellId !== null
+        ? session.theirTeam.find((p) => p.cellId === laneOpponentCellId)
+        : null;
+      session.laneOpponentCellId = laneOpponentCellId;
+      session.laneOpponentChampion = laneOpponent ? laneOpponent.championName : null;
+
       // Compute real personal matchup stats for every enemy champion
       // that's actually been picked so far. Keyed by champion name so the
       // UI can just do matchupData[championName] - same shape the old
@@ -267,6 +312,9 @@ app.whenReady().then(() => {
       // each entry - how the population does in that exact matchup, not
       // just the champion overall. (Matchup data is all-time - not
       // affected by the patch/date filter; see lib/populationStats.js.)
+      // Kept as a dict for every enemy pick, not just the resolved
+      // opponent, in case the UI ever wants to show more than one - the
+      // dataset here is tiny (at most 5 entries) so this costs nothing.
       const matchupData = {};
       for (const p of session.theirTeam) {
         if (p.championName && !matchupData[p.championName]) {
@@ -290,7 +338,6 @@ app.whenReady().then(() => {
       // Personal vs. population comparison for whichever champion the
       // local player has actually picked (if any). The population side
       // respects the user's patch/date filter from settings.
-      const myPick = session.myTeam.find((p) => p.cellId === session.localPlayerCellId);
       session.personalVsPopulation = null;
       session.synergyData = [];
       if (myPick && myPick.championName) {
@@ -326,11 +373,15 @@ app.whenReady().then(() => {
 
       // Champion pool recommendations - ranks the user's pool for the
       // current draft state using the transparent formula in lib/recommendations.js.
-      // Each pick is tagged with its assigned position so the UI can label
-      // counter/synergy rows (e.g. "JG", "MID") instead of just a name.
-      const currentEnemyPicks = session.theirTeam
-        .filter((p) => p.championName)
-        .map((p) => ({ championName: p.championName, position: p.position }));
+      // Counter Δ is computed against the resolved lane opponent ONLY, not
+      // every enemy pick - averaging across the whole enemy team was never
+      // actually "your matchup," it just happened to mostly self-correct
+      // because the population matchup data is itself position-scoped (see
+      // fetch-population-data.js) and off-role lookups usually came back
+      // null. This makes that intentional instead of incidental.
+      const currentEnemyPicks = laneOpponent
+        ? [{ championName: laneOpponent.championName, position: laneOpponent.position }]
+        : [];
       const currentAllyPicks = session.myTeam
         .filter((p) => p.cellId !== session.localPlayerCellId && p.championName)
         .map((p) => ({ championName: p.championName, position: p.position }));
@@ -350,13 +401,11 @@ app.whenReady().then(() => {
 
       // Champion pools are now per-role (top/jungle/middle/bottom/utility),
       // set from the Settings page. Use whichever pool matches the local
-      // player's assigned lane for this draft (myPick.position, from the
-      // LCU's assignedPosition - same values sessionMapper.js already
-      // passes through). If no lane is assigned yet (early in champ select,
-      // or a custom game that never assigns one), fall back to the union of
+      // player's assigned lane for this draft (myPositionKey, resolved
+      // above). If no lane is assigned yet (early in champ select, or a
+      // custom game that never assigns one), fall back to the union of
       // every role's pool, deduplicated, so recommendations aren't just
       // empty while we wait.
-      const myPositionKey = myPick && myPick.position ? myPick.position.toLowerCase() : null;
       let sourcePool;
       let poolSourceLabel;
       if (myPositionKey && userConfig.championPools[myPositionKey] && userConfig.championPools[myPositionKey].length > 0) {
@@ -406,12 +455,14 @@ app.whenReady().then(() => {
       }
     },
     onChampSelectEnd: () => {
+      laneOpponentOverrideCellId = null; // next draft starts fresh, not carrying this one's pick forward
       hideOverlay();
       if (dashboardWindow) {
         dashboardWindow.webContents.send('session-ended');
       }
     },
     onLeagueClosed: () => {
+      laneOpponentOverrideCellId = null;
       hideOverlay();
       if (dashboardWindow) {
         dashboardWindow.webContents.send('session-ended');
@@ -434,6 +485,17 @@ app.on('window-all-closed', () => {
 ipcMain.on('navigate-to', (event, page) => {
   if (!DASHBOARD_PAGES.includes(page)) return;
   if (dashboardWindow) dashboardWindow.loadFile(`src/${page}.html`);
+});
+
+// Overlay or dashboard -> main: the player clicked a specific enemy
+// portrait to say "this is who I'm laning against," overriding the
+// position-based auto-guess. Applied on the next poll tick (~2s, same
+// cadence as everything else) - no need to force an immediate re-send.
+// A non-number is ignored rather than stored, so a stray/garbled message
+// can't silently wipe out a real override.
+ipcMain.on('set-lane-opponent', (event, cellId) => {
+  if (typeof cellId !== 'number') return;
+  laneOpponentOverrideCellId = cellId;
 });
 
 // Settings page: every champion Data Dragon knows about, each with an

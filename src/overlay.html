@@ -269,6 +269,7 @@
 
         .enemy-comp {
             display: flex;
+            align-items: center;
             gap: 4px;
         }
 
@@ -278,14 +279,43 @@
             font-size: 8px;
         }
 
+        /* Any enemy portrait that's actually been picked can be clicked to
+           say "this is who I'm laning against" - overrides the
+           position-based auto-guess. Empty/unpicked slots (dash
+           placeholders) are never clickable, since there's no champion yet
+           to pin as the opponent. */
+        .enemy-comp .portrait.clickable {
+            cursor: pointer;
+            transition: border-color 0.12s ease, transform 0.08s ease;
+        }
+
+        .enemy-comp .portrait.clickable:hover {
+            border-color: var(--gold-bright);
+            transform: translateY(-1px);
+        }
+
+        /* The resolved lane opponent - reordered to the leftmost slot in
+           renderContextBar() and given a visibly different border/size so
+           it reads as "the one in question," not just another enemy pick. */
+        .enemy-comp .portrait.assumed-opponent {
+            width: 30px;
+            height: 30px;
+            font-size: 9px;
+            border: 2px solid var(--gold-bright);
+            box-shadow: 0 0 6px rgba(240, 199, 94, 0.45);
+        }
+
         /* Empty role slot shown before that position's pick comes in -
-           dimmer border/background than a filled portrait, and holds a
-           small hand-drawn role glyph (not an official Riot icon - just a
-           stand-in) instead of a champion image. */
+           dimmer border/background than a filled portrait. Deliberately
+           just a plain dash rather than a role icon - a small position
+           glyph wasn't actually legible enough at this size to tell lanes
+           apart, so it's not worth the visual noise. */
         .role-placeholder {
             background: rgba(0, 0, 0, 0.2);
             border-color: rgba(200, 155, 60, 0.2);
             color: var(--parchment-faint);
+            font-size: 14px;
+            font-weight: 300;
         }
 
         .context-empty {
@@ -676,7 +706,7 @@
 
         .footer-tier {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 10.5px;
+            font-size: 9px;
             letter-spacing: 0.5px;
             color: var(--gold-bright);
             text-transform: uppercase;
@@ -687,9 +717,19 @@
 
         .tier-icon {
             display: inline-block;
-            width: 7px;
-            height: 7px;
+            width: 18px;
+            height: 18px;
             margin-right: 6px;
+            vertical-align: middle;
+            object-fit: contain;
+        }
+
+        /* Shown only if the real rank-emblem image fails to load (asset
+           not fetched yet - see README) - the original hand-drawn gold
+           diamond as a graceful degradation, not a broken-image icon. */
+        .tier-icon-fallback {
+            width: 10px;
+            height: 10px;
             border: 1px solid var(--gold-bright);
             background: linear-gradient(160deg, var(--gold-bright), var(--gold));
             transform: rotate(45deg);
@@ -735,24 +775,17 @@
         // Standard role order for the always-5-slots enemy comp row.
         const ROLE_ORDER = ['top', 'jungle', 'middle', 'bottom', 'utility'];
 
-        // Small hand-drawn stand-in glyphs for each role, shown in an empty
-        // slot until that position's pick comes in. These are NOT official
-        // Riot position icons (no access to that asset set here) - just
-        // simple line icons in the app's own gold/parchment style, easy to
-        // swap for real ones later. stroke="currentColor" so they pick up
-        // whatever color the surrounding .portrait/.role-placeholder sets.
-        const ROLE_ICONS = {
-            top: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 11 L8 4 L12 11"/></svg>',
-            jungle: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2v11M5 5h6M6 8h4"/></svg>',
-            middle: '<svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="4.3" y="4.3" width="7.4" height="7.4" transform="rotate(45 8 8)"/></svg>',
-            bottom: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 5 L8 12 L12 5"/></svg>',
-            utility: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2 L13 4.5 V8 C13 11.5 8 14 8 14 C8 14 3 11.5 3 8 V4.5 Z"/></svg>'
-        };
-
         let lastSession = null;
         let view = 'list'; // 'list' | 'detail'
         let expandedChampion = null;
         let collapsed = false;
+        // Optimistic client-side copy of "who did I just click as my lane
+        // opponent" - shown immediately on click, before main.js's next
+        // poll tick (~2s) confirms it back through session.laneOpponentCellId.
+        // A fresh overlay window is created per champ-select session (see
+        // showOverlay()/hideOverlay() in main.js), so this naturally resets
+        // to null every new draft without any explicit cleanup here.
+        let localOpponentOverrideCellId = null;
 
         function abbreviate(name) {
             return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
@@ -763,12 +796,16 @@
         // If the icon URL 404s (unresolved id, e.g. for special-case names
         // before nameToId has been populated), wirePortraitFallbacks()
         // below swaps it back to the abbreviation on load error.
-        function portraitHtml(name, iconUrl, extraClass) {
+        // extraAttrs is a raw string of additional HTML attributes (e.g.
+        // `data-cell-id="5" title="..."`) - used by the enemy-comp row to
+        // make picked portraits clickable.
+        function portraitHtml(name, iconUrl, extraClass, extraAttrs) {
             const cls = 'portrait' + (extraClass ? ' ' + extraClass : '');
+            const attrs = extraAttrs ? ' ' + extraAttrs : '';
             if (iconUrl) {
-                return `<span class="${cls}"><img src="${iconUrl}" alt="${name}" data-fallback="${abbreviate(name)}"></span>`;
+                return `<span class="${cls}"${attrs}><img src="${iconUrl}" alt="${name}" data-fallback="${abbreviate(name)}"></span>`;
             }
-            return `<span class="${cls}">${abbreviate(name)}</span>`;
+            return `<span class="${cls}"${attrs}>${abbreviate(name)}</span>`;
         }
 
         // Swaps any portrait <img> that failed to load back to its text
@@ -877,11 +914,12 @@
             const roleText = posKey ? (SHORT_POSITION_LABELS[posKey] || posKey.toUpperCase()) : '—';
             const roleChip = `<div class="role-chip"><span class="role-text">${roleText}</span><span class="vs">vs</span></div>`;
 
-            // Always show exactly 5 slots in TOP/JG/MID/BOT/SUP order so the
-            // row has a stable shape from the moment champ select opens,
-            // rather than growing one portrait at a time as picks land.
-            // Each slot shows the real champion portrait once picked, and a
-            // small role glyph placeholder until then.
+            // Always show exactly 5 slots so the row has a stable shape
+            // from the moment champ select opens, rather than growing one
+            // portrait at a time as picks land. Built in TOP/JG/MID/BOT/SUP
+            // order first (same fallback as before for custom games with
+            // blank assignedPosition), then reordered below so whichever
+            // slot is the resolved lane opponent moves to the front.
             const theirTeam = session.theirTeam || [];
             const byPosition = {};
             const unassigned = [];
@@ -893,23 +931,58 @@
                     unassigned.push(p);
                 }
             }
-
-            const slotsHtml = ROLE_ORDER.map((role) => {
-                // Custom-game bots/enemies can come back with a blank
-                // assignedPosition (same caveat as the dashboard's
-                // GUESSED_LANE_ORDER) - fall back to filling remaining
-                // slots with whatever unassigned picks are left, in order.
+            let slots = ROLE_ORDER.map((role) => {
                 const pick = byPosition[role] || (unassigned.length > 0 ? unassigned.shift() : null);
+                return { role, pick };
+            });
+
+            // The local optimistic click wins immediately; once main.js's
+            // next poll tick confirms it, session.laneOpponentCellId will
+            // match it anyway, so preferring the local value never shows
+            // something main.js disagrees with - it's just faster.
+            const resolvedCellId = localOpponentOverrideCellId !== null
+                ? localOpponentOverrideCellId
+                : (session.laneOpponentCellId ?? null);
+
+            const opponentIndex = slots.findIndex((s) => s.pick && s.pick.cellId === resolvedCellId);
+            if (opponentIndex > 0) {
+                const [opponentSlot] = slots.splice(opponentIndex, 1);
+                slots.unshift(opponentSlot);
+            }
+
+            const slotsHtml = slots.map(({ role, pick }) => {
                 if (pick && pick.championName) {
-                    return portraitHtml(pick.championName, pick.iconUrl);
+                    const isAssumed = pick.cellId === resolvedCellId;
+                    const classes = ['clickable', isAssumed ? 'assumed-opponent' : ''].filter(Boolean).join(' ');
+                    const title = isAssumed
+                        ? `Assumed opponent (${SHORT_POSITION_LABELS[role] || role.toUpperCase()}) — click another portrait to change`
+                        : `Click if this is actually who you're laning against`;
+                    return portraitHtml(pick.championName, pick.iconUrl, classes, `data-cell-id="${pick.cellId}" title="${title}"`);
                 }
                 const label = SHORT_POSITION_LABELS[role] || role.toUpperCase();
-                return `<span class="portrait role-placeholder" title="${label}">${ROLE_ICONS[role]}</span>`;
+                return `<span class="portrait role-placeholder" title="${label}">&#8211;</span>`;
             }).join('');
 
             const rightSide = `<div class="enemy-comp">${slotsHtml}</div>`;
 
             return `<div class="context-bar">${roleChip}${rightSide}</div>`;
+        }
+
+        // Click handler for the enemy-comp row: any picked (clickable)
+        // portrait sets it as the lane opponent, both locally (instant
+        // visual feedback) and via IPC (so main.js recomputes Counter Δ
+        // and the report against the right person on the next poll tick).
+        function wireLaneOpponentClicks() {
+            document.querySelectorAll('.enemy-comp .portrait.clickable[data-cell-id]').forEach((el) => {
+                el.addEventListener('click', () => {
+                    const cellId = Number(el.dataset.cellId);
+                    localOpponentOverrideCellId = cellId;
+                    if (window.overlayAPI && window.overlayAPI.setLaneOpponent) {
+                        window.overlayAPI.setLaneOpponent(cellId);
+                    }
+                    renderCurrent();
+                });
+            });
         }
 
         function renderFooter(session) {
@@ -992,6 +1065,8 @@
             });
 
             wirePortraitFallbacks();
+            wireTierIconFallback();
+            wireLaneOpponentClicks();
             fitToContent();
         }
 

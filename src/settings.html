@@ -7,7 +7,7 @@
     <title>LoLens — Settings</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <style>
         :root {
@@ -33,7 +33,8 @@
         body {
             background: radial-gradient(ellipse at top, #0F1D38 0%, var(--navy-deep) 70%);
             color: var(--parchment);
-            font-family: 'Spectral', serif;
+            font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+            font-weight: 300;
             min-height: 100vh;
             padding: 16px 18px 32px;
             font-size: 13px;
@@ -169,6 +170,16 @@
             color: var(--gold-bright);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        /* Short explainer under a panel title (e.g. Population) - one
+           sentence, muted, in the body serif rather than the mono/Oswald
+           accents used for data/labels. */
+        .panel-desc {
+            font-size: 11px;
+            line-height: 1.5;
+            color: var(--parchment-dim);
             margin-bottom: 16px;
         }
 
@@ -195,6 +206,21 @@
             color: var(--parchment-faint);
             margin-top: 6px;
             font-style: italic;
+        }
+
+        /* Two dropdown fields side by side in one panel (Population's
+           Patch + Tier) - each half is its own .field-sized flex child so
+           the existing .combo positioning/label styling works unchanged. */
+        .dual-field {
+            display: flex;
+            gap: 14px;
+            margin-bottom: 0;
+        }
+
+        .dual-field .field-half {
+            flex: 1;
+            min-width: 0;
+            margin-bottom: 0;
         }
 
         /* ---- role tabs ---- */
@@ -298,7 +324,11 @@
             background: var(--navy-panel);
             border: 1px solid var(--gold);
             box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
-            max-height: 264px;
+            /* ~6 rows tall (each row is ~30px: 14px vertical padding +
+               ~16px line height) rather than the ~8 rows this used to
+               show - a shorter list stays glanceable and doesn't sprawl
+               over neighboring fields. */
+            max-height: 188px;
             display: flex;
             flex-direction: column;
         }
@@ -333,6 +363,26 @@
             border: 1px solid rgba(200, 155, 60, 0.3);
             background: #16243F;
             object-fit: cover;
+        }
+
+        /* Rank emblems are badge-shaped on a transparent background, not
+           square champion portraits - no border/box behind them, just the
+           image itself, sized down slightly from .row-icon. */
+        .tier-row-icon {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            object-fit: contain;
+        }
+
+        /* Same emblem, shown inline in the closed trigger button next to
+           the selected tier's label (e.g. the "🦅 Diamond+" trigger). */
+        .tier-trigger-icon {
+            width: 14px;
+            height: 14px;
+            margin-right: 6px;
+            vertical-align: middle;
+            object-fit: contain;
         }
 
         .combo-row .row-name {
@@ -393,23 +443,6 @@
             margin-top: 20px;
         }
 
-        button.save {
-            background: var(--gold);
-            border: none;
-            color: var(--navy-deep);
-            font-family: 'Oswald', sans-serif;
-            font-weight: 600;
-            font-size: 12px;
-            padding: 9px 22px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        button.save:hover {
-            background: var(--gold-bright);
-        }
-
         .saved-note {
             font-size: 11px;
             color: var(--green);
@@ -437,37 +470,34 @@
         <div class="frame panel">
             <div class="corner-tr"></div>
             <div class="corner-bl"></div>
-            <div class="panel-title">Comparison rank</div>
-            <div class="field">
-                <label for="tierTrigger">Compare your picks against</label>
-                <div class="combo" id="tierCombo">
-                    <button type="button" class="combo-trigger" id="tierTrigger">
-                        <span id="tierTriggerLabel">—</span>
-                        <span class="chev">&#9662;</span>
-                    </button>
-                    <div class="combo-panel" id="tierPanel" hidden>
-                        <div class="combo-list" id="tierList"></div>
+            <div class="panel-title">Population</div>
+            <p class="panel-desc">The data set used for all synergy and counter calculations. Wider tiers and longer
+                windows give larger, more reliable samples.</p>
+            <div class="dual-field">
+                <div class="field-half">
+                    <label for="patchTrigger">Patch</label>
+                    <div class="combo" id="patchCombo">
+                        <button type="button" class="combo-trigger" id="patchTrigger">
+                            <span id="patchTriggerLabel">—</span>
+                            <span class="chev">&#9662;</span>
+                        </button>
+                        <div class="combo-panel" id="patchPanel" hidden>
+                            <div class="combo-list" id="patchList"></div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <div class="frame panel">
-            <div class="corner-tr"></div>
-            <div class="corner-bl"></div>
-            <div class="panel-title">Data window</div>
-            <div class="field">
-                <label for="patchTrigger">Population data to use</label>
-                <div class="combo" id="patchCombo">
-                    <button type="button" class="combo-trigger" id="patchTrigger">
-                        <span id="patchTriggerLabel">—</span>
-                        <span class="chev">&#9662;</span>
-                    </button>
-                    <div class="combo-panel" id="patchPanel" hidden>
-                        <div class="combo-list" id="patchList"></div>
+                <div class="field-half">
+                    <label for="tierTrigger">Tier</label>
+                    <div class="combo" id="tierCombo">
+                        <button type="button" class="combo-trigger" id="tierTrigger">
+                            <span id="tierTriggerLabel">—</span>
+                            <span class="chev">&#9662;</span>
+                        </button>
+                        <div class="combo-panel" id="tierPanel" hidden>
+                            <div class="combo-list" id="tierList"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="hint" id="patchHint"></div>
             </div>
         </div>
 
@@ -484,6 +514,17 @@
                 <button class="role-tab" data-role="utility">Support</button>
             </div>
 
+            <!-- Pool chips now come BEFORE the search box: the search
+                 combo's dropdown panel is position:absolute and expands
+                 downward, so with search on top it used to cover this
+                 exact list while you were adding to it - easy to lose
+                 track of what's already in the pool mid-search. -->
+            <div class="field">
+                <label id="poolListLabel">Champions in TOP pool</label>
+                <div class="pool-chips" id="poolChips"></div>
+                <div class="hint" id="poolEmptyHint"></div>
+            </div>
+
             <div class="field">
                 <label for="champSearch">Add to the <span id="activeRoleLabel">TOP</span> pool</label>
                 <div class="combo" id="champCombo">
@@ -494,16 +535,9 @@
                     </div>
                 </div>
             </div>
-
-            <div class="field">
-                <label id="poolListLabel">Champions in TOP pool</label>
-                <div class="pool-chips" id="poolChips"></div>
-                <div class="hint" id="poolEmptyHint"></div>
-            </div>
         </div>
 
         <div class="save-row">
-            <button class="save" id="settingsSave">Save</button>
             <span class="saved-note" id="settingsSavedNote">Saved</span>
         </div>
     </div>
@@ -513,6 +547,16 @@
         document.querySelectorAll('.nav-btn').forEach((btn) => {
             btn.addEventListener('click', () => window.draftAPI.navigate(btn.dataset.page));
         });
+
+        // Maps a populationTier value to its rank emblem image. Duplicated
+        // (deliberately - it's a trivial pure string formula, not worth an
+        // IPC round trip) from lib/rankEmblem.js's logic. Keep the two in
+        // sync if that mapping ever changes.
+        function rankEmblemUrl(tier) {
+            if (!tier) return null;
+            const key = tier.replace('_PLUS', '').replace('+', '').toLowerCase();
+            return `../assets/rank-emblems/${key}.png`;
+        }
 
         // ---- generic combo (custom dropdown) plumbing ----
         // Every dropdown on this page shares a `.combo` wrapper around a trigger
@@ -583,9 +627,14 @@
             document.querySelectorAll('.combo').forEach((combo) => closeCombo(combo));
         });
 
-        function rowHtml(value, label, selected) {
+        // iconUrl is optional - patch rows don't pass one (no icon), tier
+        // rows do (their rank emblem).
+        function rowHtml(value, label, selected, iconUrl) {
+            const icon = iconUrl
+                ? `<img class="tier-row-icon" src="${iconUrl}" alt="" onerror="this.style.visibility='hidden'">`
+                : '';
             return `<div class="combo-row${selected ? ' selected' : ''}" data-value="${value}">
-      <span class="row-name">${label}</span>
+      ${icon}<span class="row-name">${label}</span>
     </div>`;
         }
 
@@ -604,13 +653,23 @@
         const tierPanel = document.getElementById('tierPanel');
         const tierList = document.getElementById('tierList');
 
+        // Sets the closed trigger's contents to the emblem + label for
+        // whichever tier is currently selected.
+        function setTierTriggerLabel() {
+            const opt = TIER_OPTIONS.find((o) => o.value === selectedTier);
+            const label = opt ? opt.label : selectedTier;
+            const emblem = `<img class="tier-trigger-icon" src="${rankEmblemUrl(selectedTier)}" alt="" onerror="this.style.display='none'">`;
+            tierTriggerLabel.innerHTML = `${emblem}${label}`;
+        }
+
         function renderTierList() {
-            tierList.innerHTML = TIER_OPTIONS.map((opt) => rowHtml(opt.value, opt.label, opt.value === selectedTier)).join('');
+            tierList.innerHTML = TIER_OPTIONS.map((opt) => rowHtml(opt.value, opt.label, opt.value === selectedTier, rankEmblemUrl(opt.value))).join('');
             tierList.querySelectorAll('.combo-row').forEach((row) => {
                 row.addEventListener('click', () => {
                     selectedTier = row.dataset.value;
-                    tierTriggerLabel.textContent = TIER_OPTIONS.find((o) => o.value === selectedTier).label;
+                    setTierTriggerLabel();
                     tierComboCtl.close();
+                    persist();
                 });
             });
         }
@@ -624,7 +683,6 @@
         const patchTriggerLabel = document.getElementById('patchTriggerLabel');
         const patchPanel = document.getElementById('patchPanel');
         const patchList = document.getElementById('patchList');
-        const patchHint = document.getElementById('patchHint');
 
         function labelForPatchValue(value) {
             const preset = patchOptionsData.presets.find((p) => p.value === value);
@@ -656,6 +714,7 @@
                     selectedPatchValue = row.dataset.value;
                     patchTriggerLabel.textContent = labelForPatchValue(selectedPatchValue);
                     patchComboCtl.close();
+                    persist();
                 });
             });
         }
@@ -686,7 +745,7 @@
         }
 
         // Champions already in the active pool are left out of the search
-        // results entirely (they're already shown as chips below), so there's
+        // results entirely (they're already shown as chips above), so there's
         // no need for a checkmark or a toggle - picking a row always adds it.
         function renderChampList(filterText) {
             const q = (filterText || '').trim().toLowerCase();
@@ -715,6 +774,7 @@
             renderChampList('');
             renderPoolChips();
             champSearch.focus();
+            persist();
         }
 
         function renderPoolChips() {
@@ -726,7 +786,7 @@
             const pool = pools[activeRole];
             if (pool.length === 0) {
                 poolChips.innerHTML = '';
-                poolEmptyHint.textContent = `No champions in the ${label} pool yet — search above to add some.`;
+                poolEmptyHint.textContent = `No champions in the ${label} pool yet — search below to add some.`;
                 return;
             }
             poolEmptyHint.textContent = `${pool.length} champion(s) in this pool.`;
@@ -744,6 +804,7 @@
                     if (idx !== -1) pool.splice(idx, 1);
                     renderPoolChips();
                     if (!champPanel.hidden) renderChampList(champSearch.value);
+                    persist();
                 });
             });
         }
@@ -780,7 +841,7 @@
             });
 
             selectedTier = settings.populationTier;
-            tierTriggerLabel.textContent = (TIER_OPTIONS.find((o) => o.value === selectedTier) || {}).label || selectedTier;
+            setTierTriggerLabel();
 
             patchOptionsData = patchOptions;
             const encoded = encodePatchFilter(settings.patchFilter);
@@ -788,9 +849,6 @@
                 || (encoded.startsWith('patch:') && patchOptionsData.patches.includes(encoded.slice(6)));
             selectedPatchValue = encodedIsValid ? encoded : 'all';
             patchTriggerLabel.textContent = labelForPatchValue(selectedPatchValue);
-            patchHint.textContent = patchOptionsData.patches.length === 0
-                ? 'No per-patch data recorded yet — run fetch-population-data to start tracking patches.'
-                : patchOptionsData.patches.length + ' patch(es) recorded.';
 
             if (allChampions.length === 0) {
                 champSearch.disabled = true;
@@ -800,15 +858,22 @@
             renderPoolChips();
         }
 
-        document.getElementById('settingsSave').addEventListener('click', () => {
-            const populationTier = selectedTier;
-            const patchFilter = decodePatchFilter(selectedPatchValue);
-            window.draftAPI.updateSettings({ championPools: pools, populationTier, patchFilter });
+        // Autosave: every mutation site below (rank pick, data-window pick, add/
+        // remove champion) calls this directly instead of waiting on a Save
+        // button. Flashes the "Saved" note as the only feedback that it happened.
+        let savedNoteTimer = null;
+        function persist() {
+            window.draftAPI.updateSettings({
+                championPools: pools,
+                populationTier: selectedTier,
+                patchFilter: decodePatchFilter(selectedPatchValue)
+            });
 
             const note = document.getElementById('settingsSavedNote');
             note.style.opacity = '1';
-            setTimeout(() => { note.style.opacity = '0'; }, 1800);
-        });
+            clearTimeout(savedNoteTimer);
+            savedNoteTimer = setTimeout(() => { note.style.opacity = '0'; }, 1200);
+        }
 
         init();
     </script>

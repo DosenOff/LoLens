@@ -7,19 +7,22 @@
     <title>LoLens — About</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500;600&family=Teko:wght@400;500;600&display=swap"
         rel="stylesheet">
     <style>
         :root {
             --navy-deep: #0A0E14;
             --navy: #0A1428;
             --navy-panel: #0F1B33;
+            --navy-panel-raised: #16243F;
             --gold: #C89B3C;
             --gold-bright: #F0C75E;
             --gold-dim: #5C4A22;
             --parchment: #F0E6D2;
             --parchment-dim: #A09B8C;
             --parchment-faint: #5A5648;
+            --green: #7FD99B;
+            --red: #E08A8A;
         }
 
         * {
@@ -31,7 +34,8 @@
         body {
             background: radial-gradient(ellipse at top, #0F1D38 0%, var(--navy-deep) 70%);
             color: var(--parchment);
-            font-family: 'Spectral', serif;
+            font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+            font-weight: 300;
             min-height: 100vh;
             padding: 16px 18px 32px;
             font-size: 13px;
@@ -179,6 +183,317 @@
             margin-bottom: 0;
         }
 
+        /* ---- hero ---- */
+        .hero {
+            padding: 28px 26px 24px;
+        }
+
+        .hero-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 10px;
+        }
+
+        .hero h2 {
+            font-family: 'Teko', 'Oswald', sans-serif;
+            font-weight: 600;
+            font-size: 34px;
+            letter-spacing: 0.5px;
+            line-height: 1.1;
+            color: var(--parchment);
+            margin-bottom: 14px;
+        }
+
+        .hero h2 em {
+            font-style: normal;
+            color: var(--gold-bright);
+        }
+
+        .hero .lede {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--parchment-dim);
+            max-width: 640px;
+        }
+
+        .hero .lede strong {
+            color: var(--parchment);
+            font-weight: 600;
+        }
+
+        /* ---- screenshot ---- */
+        .shot-frame {
+            border: 1px solid var(--gold-dim);
+            background: rgba(0, 0, 0, 0.25);
+            padding: 14px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .shot-frame img {
+            max-width: 340px;
+            width: 100%;
+            display: block;
+            border: 1px solid rgba(200, 155, 60, 0.3);
+        }
+
+        .shot-caption {
+            text-align: center;
+            font-size: 11px;
+            font-style: italic;
+            color: var(--parchment-faint);
+            margin-top: 10px;
+        }
+
+        /* ---- numbered steps ---- */
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .step {
+            display: flex;
+            gap: 16px;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(200, 155, 60, 0.12);
+        }
+
+        .step:last-child {
+            border-bottom: none;
+        }
+
+        .step-num {
+            width: 26px;
+            height: 26px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(45deg);
+            border: 1.5px solid var(--gold);
+            background: linear-gradient(160deg, var(--gold-bright), var(--gold));
+            margin-top: 2px;
+        }
+
+        .step-num span {
+            transform: rotate(-45deg);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--navy-deep);
+        }
+
+        .step-body h3 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 14px;
+            letter-spacing: 0.3px;
+            color: var(--parchment);
+            margin-bottom: 4px;
+        }
+
+        .step-body p {
+            font-size: 12.5px;
+            line-height: 1.55;
+            color: var(--parchment-dim);
+            margin: 0;
+        }
+
+        .step-tag {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--gold);
+            border: 1px solid var(--gold-dim);
+            padding: 2px 6px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        /* ---- personal vs population comparison ---- */
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .compare-card {
+            border: 1px solid rgba(200, 155, 60, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+            padding: 14px 16px;
+            position: relative;
+        }
+
+        .compare-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--gold), transparent);
+        }
+
+        .compare-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 8px;
+        }
+
+        .compare-stat {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--parchment);
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+
+        .compare-stat.pos {
+            color: var(--green);
+        }
+
+        .compare-desc {
+            font-size: 11.5px;
+            line-height: 1.5;
+            color: var(--parchment-dim);
+        }
+
+        .compare-takeaway {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(200, 155, 60, 0.15);
+            font-size: 12.5px;
+            line-height: 1.55;
+            color: var(--parchment);
+        }
+
+        .compare-takeaway strong {
+            color: var(--gold-bright);
+        }
+
+        /* ---- formula worked example ---- */
+        .formula-champ-row {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .formula-champ-name {
+            font-family: 'Oswald', sans-serif;
+            font-size: 16px;
+            color: var(--parchment);
+        }
+
+        .formula-champ-meta {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--parchment-faint);
+        }
+
+        .formula-strip {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(200, 155, 60, 0.15);
+            padding: 14px 16px;
+            margin-bottom: 14px;
+        }
+
+        .formula-term {
+            text-align: center;
+        }
+
+        .formula-term .val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--parchment);
+        }
+
+        .formula-term .val.pos {
+            color: var(--green);
+        }
+
+        .formula-term .val.neg {
+            color: var(--red);
+        }
+
+        .formula-term .lbl {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 8.5px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--parchment-faint);
+            margin-top: 2px;
+        }
+
+        .formula-op {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            color: var(--gold);
+        }
+
+        .formula-note {
+            font-size: 11.5px;
+            line-height: 1.55;
+            color: var(--parchment-dim);
+        }
+
+        .formula-note strong {
+            color: var(--parchment);
+        }
+
+        /* ---- honest-data callout ---- */
+        .honesty-row {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(200, 155, 60, 0.12);
+        }
+
+        .honesty-row:last-child {
+            border-bottom: none;
+        }
+
+        .honesty-mark {
+            width: 8px;
+            height: 8px;
+            flex-shrink: 0;
+            margin-top: 6px;
+            border: 1.5px solid var(--gold);
+            transform: rotate(45deg);
+        }
+
+        .honesty-row h4 {
+            font-family: 'Oswald', sans-serif;
+            font-size: 12.5px;
+            letter-spacing: 0.3px;
+            color: var(--parchment);
+            margin-bottom: 3px;
+        }
+
+        .honesty-row p {
+            font-size: 12px;
+            line-height: 1.55;
+            color: var(--parchment-dim);
+            margin: 0;
+        }
+
+        /* ---- data sources ---- */
         .kv {
             display: flex;
             justify-content: space-between;
@@ -198,6 +513,34 @@
 
         .kv .v {
             color: var(--parchment);
+            text-align: right;
+        }
+
+        /* ---- origin note ---- */
+        .origin-panel p {
+            font-style: italic;
+        }
+
+        .origin-sign {
+            margin-top: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            font-style: normal !important;
+            letter-spacing: 0.5px;
+            color: var(--gold);
+        }
+
+        /* ---- legal ---- */
+        .legal-panel p {
+            font-size: 11px;
+            line-height: 1.6;
+            color: var(--parchment-faint);
+        }
+
+        @media (max-width: 560px) {
+            .compare-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -217,15 +560,167 @@
             </nav>
         </div>
 
+        <div class="frame panel hero">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="hero-eyebrow">Champion select, decoded</div>
+            <h2>Know the draft<br><em>before</em> you pick it.</h2>
+            <p class="lede">Most tools tell you what a tier list already knows. LoLens tells you two things a tier
+                list can't: how <strong>you've</strong> actually done in this exact matchup, and how a real,
+                rank-matched sample of players are doing in it right now — read live off your champion select, with
+                nothing to type in.</p>
+        </div>
+
         <div class="frame panel">
             <div class="corner-tr"></div>
             <div class="corner-bl"></div>
-            <div class="panel-title">LoLens</div>
-            <p>A live champion-select overlay and dashboard for League of Legends: your own match history, a
-                rank-specific population win-rate baseline pulled from Riot's API, and pool recommendations that combine
-                both against whoever's in the lobby.</p>
-            <p>The corner overlay follows champ select automatically. This window is the full dashboard — open it any
-                time from the tray icon.</p>
+            <div class="panel-title">The corner overlay</div>
+            <div class="shot-frame">
+                <img src="../assets/screenshots/overlay-list.png"
+                    alt="LoLens overlay showing ranked champion recommendations with win rate, synergy, and counter deltas during champion select">
+            </div>
+            <p class="shot-caption">Live, ranked, and gone the moment champ select ends.</p>
+        </div>
+
+        <div class="frame panel">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="panel-title">How it watches your draft</div>
+            <div class="step-list">
+                <div class="step">
+                    <div class="step-num"><span>1</span></div>
+                    <div class="step-body">
+                        <h3>Launch League<span class="step-tag">no setup</span></h3>
+                        <p>LoLens notices the moment League opens and gives a quiet heads-up that it's watching. You
+                            don't open anything, log into anything, or tell it what game you're playing.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num"><span>2</span></div>
+                    <div class="step-body">
+                        <h3>Enter champion select<span class="step-tag">nothing to type</span></h3>
+                        <p>The overlay appears top-left on its own, reading picks, bans, and the clock straight from
+                            the League Client as they happen — never a draft you have to describe to it yourself.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num"><span>3</span></div>
+                    <div class="step-body">
+                        <h3>See two numbers, not one</h3>
+                        <p>Every champion in your pool is rated against the actual draft in front of you — factoring
+                            in your own history with the matchup, not just what the population tends to do.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="frame panel">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="panel-title">Why one number was never enough</div>
+            <p>A population baseline tells you what a Diamond+ lobby does on average. It has no idea what <em
+                    style="color: var(--parchment); font-style: normal;">you</em> do — and your own results are data
+                too, not noise to be averaged away.</p>
+            <div class="compare-grid">
+                <div class="compare-card">
+                    <div class="compare-label">The Population</div>
+                    <div class="compare-stat">57.1%</div>
+                    <div class="compare-desc">What a rank-matched sample of Ahri players score into this exact enemy
+                        laner, sourced from real ranked games on your patch.</div>
+                </div>
+                <div class="compare-card">
+                    <div class="compare-label">Your History</div>
+                    <div class="compare-stat pos">4–1</div>
+                    <div class="compare-desc">Your own record in that specific matchup — a small sample on its own,
+                        but a real signal a population number can't see.</div>
+                </div>
+            </div>
+            <div class="compare-takeaway">LoLens doesn't make you choose between them. Both feed into one rating, and
+                the breakdown always shows you exactly how much each one moved the needle — <strong>see the math, not
+                    just the verdict.</strong></div>
+        </div>
+
+        <div class="frame panel">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="panel-title">How the rating is built</div>
+            <div class="formula-champ-row">
+                <span class="formula-champ-name">Ahri</span>
+                <span class="formula-champ-meta">Mid &middot; 54.2% base WR &middot; Diamond+</span>
+            </div>
+            <div class="formula-strip">
+                <div class="formula-term">
+                    <div class="val">54.2</div>
+                    <div class="lbl">Base WR</div>
+                </div>
+                <span class="formula-op">+</span>
+                <div class="formula-term">
+                    <div class="val pos">+3.1</div>
+                    <div class="lbl">Personal Δ</div>
+                </div>
+                <span class="formula-op">+</span>
+                <div class="formula-term">
+                    <div class="val pos">+1.8</div>
+                    <div class="lbl">Counter Δ</div>
+                </div>
+                <span class="formula-op">+</span>
+                <div class="formula-term">
+                    <div class="val neg">−0.6</div>
+                    <div class="lbl">Synergy Δ</div>
+                </div>
+                <span class="formula-op">=</span>
+                <div class="formula-term">
+                    <div class="val pos" style="font-size: 21px;">58.5</div>
+                    <div class="lbl">Rating</div>
+                </div>
+            </div>
+            <p class="formula-note">Every term is <strong>additive and inspectable</strong> — no hidden weighting,
+                no black-box model. A term only counts when there's real data behind it; a champion you've never
+                personally played simply skips that term rather than guessing on your behalf.</p>
+        </div>
+
+        <div class="frame panel">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="panel-title">Built to tell you when it isn't sure</div>
+            <div class="honesty-row">
+                <div class="honesty-mark"></div>
+                <div>
+                    <h4>One player, one result — never all ten</h4>
+                    <p>The population baseline only counts a match's known-rank seed player, not all ten
+                        participants. The other nine players' ranks aren't actually knowable from match data —
+                        counting them anyway would quietly mislabel the sample.</p>
+                </div>
+            </div>
+            <div class="honesty-row">
+                <div class="honesty-mark"></div>
+                <div>
+                    <h4>Small samples get flagged, not hidden</h4>
+                    <p>A matchup with a handful of games shows a warning right next to the number. 57% across 14
+                        games and 57% across 14,000 look identical as a percentage — they're never treated the
+                        same here.</p>
+                </div>
+            </div>
+            <div class="honesty-row">
+                <div class="honesty-mark"></div>
+                <div>
+                    <h4>No data yet means no guess</h4>
+                    <p>If a term has nothing to draw on, it's left out of the rating entirely rather than quietly
+                        defaulting to some assumed average. An honest gap beats a confident-looking number with
+                        nothing behind it.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="frame panel origin-panel">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="panel-title">Why this exists</div>
+            <p>Most draft tools give you one number and ask you to trust it. LoLens started from a simpler idea:
+                show your own results next to the population's, show the honest sample size behind both, and let
+                the person actually playing the game decide what to do with that. No account required, nothing to
+                type — it just watches, quietly, and stays out of the way when champion select ends.</p>
+            <p class="origin-sign">— built solo, iterated in the open</p>
         </div>
 
         <div class="frame panel">
@@ -234,12 +729,25 @@
             <div class="panel-title">Data sources</div>
             <div class="kv"><span class="k">Personal match history</span><span class="v">Riot match-v5, your
                     account</span></div>
-            <div class="kv"><span class="k">Population baseline</span><span class="v">Riot league-v4 + match-v5, sampled
-                    seed players</span></div>
-            <div class="kv"><span class="k">Champion names / icons</span><span class="v">Data Dragon (public CDN)</span>
-            </div>
-            <div class="kv"><span class="k">Live champ select</span><span class="v">League Client (LCU) local API</span>
-            </div>
+            <div class="kv"><span class="k">Population baseline</span><span class="v">Riot league-v4 + match-v5,
+                    sampled seed players</span></div>
+            <div class="kv"><span class="k">Champion names / icons</span><span class="v">Data Dragon (public
+                    CDN)</span></div>
+            <div class="kv"><span class="k">Rank emblems</span><span class="v">Riot Developer Portal (static
+                    asset)</span></div>
+            <div class="kv"><span class="k">Live champ select</span><span class="v">League Client (LCU) local
+                    API</span></div>
+        </div>
+
+        <div class="frame panel legal-panel">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="panel-title">Legal</div>
+            <p>LoLens is not endorsed by Riot Games and does not reflect the views or opinions of Riot Games or
+                anyone officially involved in producing or managing League of Legends. League of Legends and Riot
+                Games are trademarks or registered trademarks of Riot Games, Inc.</p>
+            <p style="margin-top: 8px;">The League Client API used here is unofficial and not supported by Riot for
+                third-party use.</p>
         </div>
 
     </div>

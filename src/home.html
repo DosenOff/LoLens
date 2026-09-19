@@ -7,7 +7,7 @@
     <title>LoLens</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Spectral:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <style>
         :root {
@@ -34,7 +34,8 @@
         body {
             background: radial-gradient(ellipse at top, #0F1D38 0%, var(--navy-deep) 70%);
             color: var(--parchment);
-            font-family: 'Spectral', serif;
+            font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+            font-weight: 300;
             min-height: 100vh;
             padding: 16px 18px 32px;
             font-size: 13px;
@@ -291,6 +292,25 @@
             background: rgba(200, 155, 60, 0.1);
         }
 
+        /* Enemy slots with a champion picked can be clicked to say "this is who
+     I'm laning against" - overrides the position-based auto-guess. */
+        .slot.clickable {
+            cursor: pointer;
+            transition: border-color 0.12s ease, background 0.12s ease;
+        }
+
+        .slot.clickable:hover {
+            border-color: var(--gold-bright);
+        }
+
+        /* The resolved lane opponent - matches the overlay's assumed-opponent
+     treatment (distinct gold glow) so the two surfaces read consistently. */
+        .slot.lane-opponent {
+            border-color: var(--gold-bright);
+            box-shadow: 0 0 0 1px var(--gold-bright) inset, 0 0 8px rgba(240, 199, 94, 0.35);
+            background: rgba(200, 155, 60, 0.12);
+        }
+
         .slot .portrait {
             width: 26px;
             height: 26px;
@@ -303,6 +323,14 @@
             font-size: 8px;
             color: var(--parchment-faint);
             font-family: 'JetBrains Mono', monospace;
+            overflow: hidden;
+        }
+
+        .slot .portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
         }
 
         .slot.filled .portrait {
@@ -725,6 +753,17 @@
             return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
         }
 
+        // Swaps any team-slot portrait <img> that failed to load (icon URL 404s,
+        // offline, etc.) back to its text abbreviation. Call once after each
+        // renderTeamSlots() innerHTML render.
+        function wirePortraitFallbacks() {
+            document.querySelectorAll('.slot .portrait img').forEach((img) => {
+                img.addEventListener('error', () => {
+                    img.parentElement.textContent = img.dataset.fallback;
+                }, { once: true });
+            });
+        }
+
         function patchFilterLabel(filter) {
             if (!filter || filter.type === 'all') return 'all-time';
             if (filter.type === 'days') return `last ${filter.days}d`;
@@ -732,13 +771,38 @@
             return 'all-time';
         }
 
-        function renderTeamSlots(containerId, players, localPlayerCellId) {
+        function renderTeamSlots(containerId, players, localPlayerCellId, opts) {
+            const { clickable = false, opponentCellId = null } = opts || {};
             const el = document.getElementById(containerId);
             el.innerHTML = players.map((p, index) => {
                 const filled = Boolean(p.championName);
                 const isYou = p.cellId === localPlayerCellId;
-                const classes = ['slot', filled ? 'filled' : '', isYou ? 'active' : ''].filter(Boolean).join(' ');
-                const portraitText = filled ? abbreviate(p.championName) : '?';
+                // Enemy slots with a champion picked can be clicked to say "this is
+                // who I'm laning against" - see wireLaneOpponentClicks() below. Only
+                // ever true for the enemy-team call (clickable=true), and only when
+                // there's actually a champion to pin as the opponent.
+                const isClickable = clickable && filled;
+                const isAssumedOpponent = clickable && p.cellId === opponentCellId;
+                const classes = [
+                    'slot',
+                    filled ? 'filled' : '',
+                    isYou ? 'active' : '',
+                    isClickable ? 'clickable' : '',
+                    isAssumedOpponent ? 'lane-opponent' : ''
+                ].filter(Boolean).join(' ');
+                const cellAttr = isClickable ? ` data-cell-id="${p.cellId}"` : '';
+                const titleAttr = isAssumedOpponent
+                    ? ' title="Assumed opponent — click another enemy to change"'
+                    : (isClickable ? ' title="Click if this is who you\'re laning against"' : '');
+                // Real Data Dragon portrait when we have an iconUrl (main.js attaches
+                // one to every team entry once picked); falls back to the 3-letter
+                // abbreviation if there's no icon yet, or if the image 404s - see
+                // wirePortraitFallbacks() below.
+                const portraitInner = filled
+                    ? (p.iconUrl
+                        ? `<img src="${p.iconUrl}" alt="${p.championName}" data-fallback="${abbreviate(p.championName)}">`
+                        : abbreviate(p.championName))
+                    : '?';
                 const nameText = filled ? p.championName : (isYou ? 'Your pick pending' : 'Waiting');
 
                 let roleText;
@@ -751,12 +815,30 @@
                 }
 
                 return `
-        <div class="${classes}">
-          <div class="portrait">${portraitText}</div>
+        <div class="${classes}"${cellAttr}${titleAttr}>
+          <div class="portrait">${portraitInner}</div>
           <div class="name">${nameText}</div>
           <div class="role">${roleText}</div>
         </div>`;
             }).join('');
+        }
+
+        // Click handler for the enemy team column: any clickable (picked) slot
+        // sets it as the lane opponent, both locally (instant visual feedback -
+        // localOpponentOverrideCellId, defined below) and via IPC, so main.js
+        // recomputes Counter Δ and the report against the right person on the
+        // next poll tick (~2s).
+        function wireLaneOpponentClicks() {
+            document.querySelectorAll('#theirTeamSlots .slot.clickable[data-cell-id]').forEach((el) => {
+                el.addEventListener('click', () => {
+                    const cellId = Number(el.dataset.cellId);
+                    localOpponentOverrideCellId = cellId;
+                    if (window.draftAPI && window.draftAPI.setLaneOpponent) {
+                        window.draftAPI.setLaneOpponent(cellId);
+                    }
+                    if (lastSession) render(lastSession);
+                });
+            });
         }
 
         function renderBans(containerId, banNames) {
@@ -766,22 +848,31 @@
             el.innerHTML = chips.join('');
         }
 
-        function renderReport(session) {
-            const enemyPick = session.theirTeam.find((p) => p.championName);
+        function renderReport(session, resolvedOpponentCellId) {
             const meta = document.getElementById('reportMeta');
             const body = document.getElementById('reportBody');
 
-            if (!enemyPick) {
+            // resolvedOpponentCellId already accounts for a manual override (from
+            // wireLaneOpponentClicks) or main.js's auto-guess (position match,
+            // falling back to the first enemy pick) - see resolveLaneOpponentCellId()
+            // in main.js. Reporting stats against the wrong person is worse than
+            // just admitting nobody's picked yet, so this only ever shows data for
+            // that one resolved opponent, never a guess made independently here.
+            const opponent = resolvedOpponentCellId !== null
+                ? session.theirTeam.find((p) => p.cellId === resolvedOpponentCellId)
+                : null;
+
+            if (!opponent || !opponent.championName) {
                 meta.textContent = 'Waiting for a pick...';
                 body.innerHTML = '<div class="report-empty">No enemy champion picked yet.</div>';
                 return;
             }
 
-            meta.textContent = `${enemyPick.championName} picked · enemy team`;
+            meta.textContent = `${opponent.championName} picked · your lane opponent (click another enemy to change)`;
 
-            const stats = session.matchupData?.[enemyPick.championName];
+            const stats = session.matchupData?.[opponent.championName];
             if (!stats || stats.length === 0) {
-                body.innerHTML = `<div class="report-empty">No recorded games vs ${enemyPick.championName} yet.</div>`;
+                body.innerHTML = `<div class="report-empty">No recorded games vs ${opponent.championName} yet.</div>`;
                 return;
             }
 
@@ -899,7 +990,17 @@
             }).join('');
         }
 
+        let lastSession = null;
+        // Optimistic client-side copy of "who did I just click as my lane
+        // opponent" - shown immediately on click, before main.js's next poll
+        // tick (~2s) confirms it back through session.laneOpponentCellId.
+        // Unlike the overlay (a fresh window per draft), this dashboard window
+        // persists across champ-select sessions, so resetToIdle() below clears
+        // this explicitly when a draft ends.
+        let localOpponentOverrideCellId = null;
+
         function render(session) {
+            lastSession = session;
             document.getElementById('status').classList.add('live');
             document.getElementById('statusText').textContent = `Champion select — ${session.phase}`;
             document.getElementById('footerNote').textContent = 'live · connected to League Client';
@@ -907,17 +1008,32 @@
             document.getElementById('turnLabel').textContent = session.isMyTurn ? 'Your turn to pick' : 'Waiting for other players...';
             document.getElementById('turnTimer').textContent = formatTime(session.timeLeftSeconds);
 
+            // The local click wins immediately; once main.js catches up,
+            // session.laneOpponentCellId will match it anyway, so preferring the
+            // local value never shows something main.js disagrees with - it's
+            // just faster. See wireLaneOpponentClicks() above.
+            const resolvedOpponentCellId = localOpponentOverrideCellId !== null
+                ? localOpponentOverrideCellId
+                : (session.laneOpponentCellId ?? null);
+
             renderTeamSlots('myTeamSlots', session.myTeam, session.localPlayerCellId);
-            renderTeamSlots('theirTeamSlots', session.theirTeam, session.localPlayerCellId);
+            renderTeamSlots('theirTeamSlots', session.theirTeam, session.localPlayerCellId, {
+                clickable: true,
+                opponentCellId: resolvedOpponentCellId
+            });
+            wirePortraitFallbacks();
+            wireLaneOpponentClicks();
             renderBans('myBans', session.bans.mine);
             renderBans('theirBans', session.bans.theirs);
-            renderReport(session);
+            renderReport(session, resolvedOpponentCellId);
             renderBaselinePanel(session);
             renderSynergyPanel(session);
             renderRecommendations(session);
         }
 
         function resetToIdle() {
+            lastSession = null;
+            localOpponentOverrideCellId = null;
             document.getElementById('status').classList.remove('live');
             document.getElementById('statusText').textContent = 'Waiting for champion select...';
             document.getElementById('footerNote').textContent = 'connected to League · not in champion select';
