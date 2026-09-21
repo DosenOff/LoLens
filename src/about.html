@@ -7,7 +7,7 @@
     <title>LoLens — About</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500;600&family=Teko:wght@400;500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Teko:wght@400;500;600&family=Inter:wght@300;400;500&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap"
         rel="stylesheet">
     <style>
         :root {
@@ -189,7 +189,7 @@
         }
 
         .hero-eyebrow {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Inter', sans-serif;
             font-size: 10px;
             letter-spacing: 2px;
             text-transform: uppercase;
@@ -225,6 +225,17 @@
         }
 
         /* ---- screenshot ---- */
+        .shot-grid {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .shot-item {
+            flex: 1;
+            min-width: 220px;
+        }
+
         .shot-frame {
             border: 1px solid var(--gold-dim);
             background: rgba(0, 0, 0, 0.25);
@@ -281,7 +292,7 @@
 
         .step-num span {
             transform: rotate(-45deg);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 13px;
             font-weight: 600;
             color: var(--navy-deep);
@@ -304,7 +315,7 @@
 
         .step-tag {
             display: inline-block;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Inter', sans-serif;
             font-size: 9px;
             letter-spacing: 0.5px;
             text-transform: uppercase;
@@ -341,7 +352,7 @@
         }
 
         .compare-label {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Inter', sans-serif;
             font-size: 10px;
             letter-spacing: 1px;
             text-transform: uppercase;
@@ -350,7 +361,7 @@
         }
 
         .compare-stat {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', serif;
             font-size: 24px;
             font-weight: 600;
             color: var(--parchment);
@@ -396,7 +407,7 @@
         }
 
         .formula-champ-meta {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 11px;
             color: var(--parchment-faint);
         }
@@ -417,7 +428,7 @@
         }
 
         .formula-term .val {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 17px;
             font-weight: 600;
             color: var(--parchment);
@@ -432,7 +443,7 @@
         }
 
         .formula-term .lbl {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 8.5px;
             letter-spacing: 0.5px;
             text-transform: uppercase;
@@ -441,7 +452,7 @@
         }
 
         .formula-op {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 15px;
             color: var(--gold);
         }
@@ -456,80 +467,6 @@
             color: var(--parchment);
         }
 
-        /* ---- honest-data callout ---- */
-        .honesty-row {
-            display: flex;
-            gap: 14px;
-            align-items: flex-start;
-            padding: 12px 0;
-            border-bottom: 1px solid rgba(200, 155, 60, 0.12);
-        }
-
-        .honesty-row:last-child {
-            border-bottom: none;
-        }
-
-        .honesty-mark {
-            width: 8px;
-            height: 8px;
-            flex-shrink: 0;
-            margin-top: 6px;
-            border: 1.5px solid var(--gold);
-            transform: rotate(45deg);
-        }
-
-        .honesty-row h4 {
-            font-family: 'Oswald', sans-serif;
-            font-size: 12.5px;
-            letter-spacing: 0.3px;
-            color: var(--parchment);
-            margin-bottom: 3px;
-        }
-
-        .honesty-row p {
-            font-size: 12px;
-            line-height: 1.55;
-            color: var(--parchment-dim);
-            margin: 0;
-        }
-
-        /* ---- data sources ---- */
-        .kv {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(200, 155, 60, 0.12);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-        }
-
-        .kv:last-child {
-            border-bottom: none;
-        }
-
-        .kv .k {
-            color: var(--parchment-faint);
-        }
-
-        .kv .v {
-            color: var(--parchment);
-            text-align: right;
-        }
-
-        /* ---- origin note ---- */
-        .origin-panel p {
-            font-style: italic;
-        }
-
-        .origin-sign {
-            margin-top: 12px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10.5px;
-            font-style: normal !important;
-            letter-spacing: 0.5px;
-            color: var(--gold);
-        }
-
         /* ---- legal ---- */
         .legal-panel p {
             font-size: 11px;
@@ -540,6 +477,10 @@
         @media (max-width: 560px) {
             .compare-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .shot-grid {
+                flex-direction: column;
             }
         }
     </style>
@@ -575,11 +516,24 @@
             <div class="corner-tr"></div>
             <div class="corner-bl"></div>
             <div class="panel-title">The corner overlay</div>
-            <div class="shot-frame">
-                <img src="../assets/screenshots/overlay-list.png"
-                    alt="LoLens overlay showing ranked champion recommendations with win rate, synergy, and counter deltas during champion select">
+            <div class="shot-grid">
+                <div class="shot-item">
+                    <div class="shot-frame">
+                        <img src="../assets/screenshots/overlay-list.png"
+                            alt="LoLens overlay showing ranked champion recommendations with win rate, synergy, and counter deltas during champion select">
+                    </div>
+                    <p class="shot-caption">Your pool, ranked live — every champion's win rate and deltas at a
+                        glance as the draft plays out.</p>
+                </div>
+                <div class="shot-item">
+                    <div class="shot-frame">
+                        <img src="../assets/screenshots/overlay-detail.png"
+                            alt="LoLens overlay showing the detailed rating breakdown for a single champion, including base win rate, personal delta, counter delta, and synergy delta">
+                    </div>
+                    <p class="shot-caption">Tap a champion to see how that rating was built — base win rate,
+                        your history, the counter, and the synergy, broken out.</p>
+                </div>
             </div>
-            <p class="shot-caption">Live, ranked, and gone the moment champ select ends.</p>
         </div>
 
         <div class="frame panel">
@@ -677,66 +631,6 @@
             <p class="formula-note">Every term is <strong>additive and inspectable</strong> — no hidden weighting,
                 no black-box model. A term only counts when there's real data behind it; a champion you've never
                 personally played simply skips that term rather than guessing on your behalf.</p>
-        </div>
-
-        <div class="frame panel">
-            <div class="corner-tr"></div>
-            <div class="corner-bl"></div>
-            <div class="panel-title">Built to tell you when it isn't sure</div>
-            <div class="honesty-row">
-                <div class="honesty-mark"></div>
-                <div>
-                    <h4>One player, one result — never all ten</h4>
-                    <p>The population baseline only counts a match's known-rank seed player, not all ten
-                        participants. The other nine players' ranks aren't actually knowable from match data —
-                        counting them anyway would quietly mislabel the sample.</p>
-                </div>
-            </div>
-            <div class="honesty-row">
-                <div class="honesty-mark"></div>
-                <div>
-                    <h4>Small samples get flagged, not hidden</h4>
-                    <p>A matchup with a handful of games shows a warning right next to the number. 57% across 14
-                        games and 57% across 14,000 look identical as a percentage — they're never treated the
-                        same here.</p>
-                </div>
-            </div>
-            <div class="honesty-row">
-                <div class="honesty-mark"></div>
-                <div>
-                    <h4>No data yet means no guess</h4>
-                    <p>If a term has nothing to draw on, it's left out of the rating entirely rather than quietly
-                        defaulting to some assumed average. An honest gap beats a confident-looking number with
-                        nothing behind it.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="frame panel origin-panel">
-            <div class="corner-tr"></div>
-            <div class="corner-bl"></div>
-            <div class="panel-title">Why this exists</div>
-            <p>Most draft tools give you one number and ask you to trust it. LoLens started from a simpler idea:
-                show your own results next to the population's, show the honest sample size behind both, and let
-                the person actually playing the game decide what to do with that. No account required, nothing to
-                type — it just watches, quietly, and stays out of the way when champion select ends.</p>
-            <p class="origin-sign">— built solo, iterated in the open</p>
-        </div>
-
-        <div class="frame panel">
-            <div class="corner-tr"></div>
-            <div class="corner-bl"></div>
-            <div class="panel-title">Data sources</div>
-            <div class="kv"><span class="k">Personal match history</span><span class="v">Riot match-v5, your
-                    account</span></div>
-            <div class="kv"><span class="k">Population baseline</span><span class="v">Riot league-v4 + match-v5,
-                    sampled seed players</span></div>
-            <div class="kv"><span class="k">Champion names / icons</span><span class="v">Data Dragon (public
-                    CDN)</span></div>
-            <div class="kv"><span class="k">Rank emblems</span><span class="v">Riot Developer Portal (static
-                    asset)</span></div>
-            <div class="kv"><span class="k">Live champ select</span><span class="v">League Client (LCU) local
-                    API</span></div>
         </div>
 
         <div class="frame panel legal-panel">
