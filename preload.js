@@ -20,8 +20,8 @@ contextBridge.exposeInMainWorld('draftAPI', {
     getChampionList: () => ipcRenderer.invoke('get-champion-list'),
     getPatchOptions: () => ipcRenderer.invoke('get-patch-options'),
     navigate: (page) => ipcRenderer.send('navigate-to', page),
-    // Player clicked an enemy portrait to say "this is who I'm laning
-    // against" - overrides the position-based auto-guess. cellId, not
-    // champion name, so it survives that player swapping picks.
-    setLaneOpponent: (cellId) => ipcRenderer.send('set-lane-opponent', cellId)
+    // Player dragged an enemy portrait into a role slot - swapping it with
+    // whoever was already there, or moving it into an empty slot. cellId,
+    // not champion name, so it survives that player swapping picks.
+    setEnemyRole: (cellId, role) => ipcRenderer.send('set-enemy-role', { cellId, role })
 });

@@ -77,6 +77,23 @@ Without this, the overlay's tier badge falls back to a plain gold diamond
 rather than the real emblem - it degrades gracefully, it just won't look
 as sharp.
 
+To get the real role icons the overlay shows underneath a portrait while
+it's being dragged (one-time setup - these are fixed, patch-independent
+assets, not something that needs regenerating per patch):
+```
+mkdir -p assets/role-icons
+BASE="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions"
+for role in top jungle middle bottom utility; do
+  curl -fL "$BASE/icon-position-$role.png" -o "assets/role-icons/$role.png"
+done
+```
+Without this, that drag backdrop falls back to the plain TOP/JG/MID/BOT/SUP
+text label instead of the icon - again, degrades gracefully rather than
+showing a broken image. If CommunityDragon is ever down or this path
+changes, browse
+https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/
+directly to find the current filenames and adjust the curl loop above.
+
 ## Roadmap
 
 - [x] Connect to live LCU champion select session

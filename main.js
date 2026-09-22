@@ -28,11 +28,17 @@ const { loadUserConfig, saveUserConfig } = require('./lib/userConfig');
 const { rankEmblemUrl } = require('./lib/rankEmblem');
 
 // User-editable settings: champion pool, which population tier to compare
-// against, and which patch/date window of population data to use. Loaded
-// from user-config.json, changeable live from the settings page.
+// against, which patch/date window of population data to use, and the
+// sample-size confidence weighting (enabled + games-for-full-weight
+// threshold) applied to personal/counter/synergy deltas — see
+// lib/recommendations.js's confidenceWeight(). Loaded from
+// user-config.json, changeable live from the settings page.
 let userConfig = loadUserConfig();
 const poolCounts = Object.entries(userConfig.championPools).map(([role, list]) => `${role}:${list.length}`).join(', ');
-console.log(`Loaded user config: pools[${poolCounts}], tier=${userConfig.populationTier}, patchFilter=${JSON.stringify(userConfig.patchFilter)}`);
+console.log(
+  `Loaded user config: pools[${poolCounts}], tier=${userConfig.populationTier}, ` +
+  `patchFilter=${JSON.stringify(userConfig.patchFilter)}, confidenceWeighting=${JSON.stringify(userConfig.confidenceWeighting)}`
+);
 
 // Load your personal match history once at startup. If it doesn't exist yet
 // (you haven't run fetch-match-ids/fetch-match-details), the app still works,
@@ -57,27 +63,29 @@ try {
   console.log('No data/population-stats.json found yet — population comparison will be empty until you run fetch-population-data.');
 }
 
-// Which enemy (by cellId, not champion name - so it survives them swapping
-// picks) the player has told us they're laning against, this draft. null
-// means "not manually set yet - auto-guess by assigned position instead."
+// Manual per-enemy role assignments made by dragging a portrait into a
+// role slot in the overlay (or the dashboard). Keyed by cellId (not
+// champion name, so it survives that player swapping picks) -> role
+// string ('top' | 'jungle' | 'middle' | 'bottom' | 'utility'). Only
+// cellIds the player has actually dragged appear here; everyone else falls
+// back to the LCU's own assignedPosition. Applied directly onto
+// theirTeam[].position in onChampSelectUpdate, before anything else runs,
+// so every downstream consumer (lane-opponent resolution, Counter Δ,
+// matchup labeling) just reads p.position and automatically respects the
+// drag — no separate override plumbing anywhere else. "My opponent" is
+// then simply whoever occupies my own role (see resolveLaneOpponentCellId).
 // Reset whenever a champ select session ends so the next draft starts
-// fresh rather than carrying a stale opponent forward.
-let laneOpponentOverrideCellId = null;
+// fresh rather than carrying a stale layout forward.
+let manualEnemyRoles = {};
 
-// Resolves which enemy the player is actually laning against, in priority
-// order: (1) a still-valid manual override - "still valid" meaning that
-// cellId is still on the enemy team AND has actually picked a champion
-// (clicking an empty/unassigned slot isn't a choice about anything yet);
-// (2) auto-guess via the LCU's assignedPosition, matching the player's own
-// lane; (3) fallback to the first enemy with a pick, so there's still
-// something sensible to show/highlight before position data exists (early
-// draft, some custom games never assign one at all). Returns null only
-// when no enemy has picked anything yet.
-function resolveLaneOpponentCellId(theirTeam, myPositionKey, overrideCellId) {
-  if (overrideCellId !== null) {
-    const stillValid = theirTeam.find((p) => p.cellId === overrideCellId && p.championName);
-    if (stillValid) return overrideCellId;
-  }
+// Resolves which enemy the player is actually laning against: whichever
+// enemy occupies the player's own role, using each enemy's EFFECTIVE
+// position (manualEnemyRoles already applied to theirTeam[].position by
+// the time this runs - see onChampSelectUpdate). Falls back to the first
+// enemy with a pick so there's still something sensible to show/highlight
+// before any position data exists (early draft, some custom games never
+// assign one at all). Returns null only when no enemy has picked anything.
+function resolveLaneOpponentCellId(theirTeam, myPositionKey) {
   if (myPositionKey) {
     const positionMatch = theirTeam.find(
       (p) => p.championName && p.position && p.position.toLowerCase() === myPositionKey
@@ -288,17 +296,25 @@ app.whenReady().then(() => {
       }));
       session.theirTeam = session.theirTeam.map((p) => ({
         ...p,
-        iconUrl: p.championName ? championIconUrl(p.championName) : null
+        iconUrl: p.championName ? championIconUrl(p.championName) : null,
+        // A manual drag-to-reorder assignment overrides whatever the LCU
+        // itself reports for this player's role. Applied here, once, so
+        // every downstream consumer (lane-opponent resolution, matchup
+        // labeling, recommendations, and the overlay/dashboard's own role
+        // bucketing) just reads p.position and gets the corrected value
+        // automatically, with no separate override plumbing anywhere else.
+        position: manualEnemyRoles[p.cellId] || p.position
       }));
 
       // Who the player is actually laning against - resolved once, up
       // front, so both the report panel and the recommendation engine's
       // Counter Δ agree on the same person rather than each guessing
-      // independently. See resolveLaneOpponentCellId() for the priority
-      // order (manual override > position match > first enemy pick).
+      // independently. This is always just "whichever enemy occupies my
+      // own role," using each enemy's effective (possibly manually
+      // corrected) position - see resolveLaneOpponentCellId().
       const myPick = session.myTeam.find((p) => p.cellId === session.localPlayerCellId);
       const myPositionKey = myPick && myPick.position ? myPick.position.toLowerCase() : null;
-      const laneOpponentCellId = resolveLaneOpponentCellId(session.theirTeam, myPositionKey, laneOpponentOverrideCellId);
+      const laneOpponentCellId = resolveLaneOpponentCellId(session.theirTeam, myPositionKey);
       const laneOpponent = laneOpponentCellId !== null
         ? session.theirTeam.find((p) => p.cellId === laneOpponentCellId)
         : null;
@@ -456,14 +472,14 @@ app.whenReady().then(() => {
       }
     },
     onChampSelectEnd: () => {
-      laneOpponentOverrideCellId = null; // next draft starts fresh, not carrying this one's pick forward
+      manualEnemyRoles = {}; // next draft starts fresh, not carrying this one's layout forward
       hideOverlay();
       if (dashboardWindow) {
         dashboardWindow.webContents.send('session-ended');
       }
     },
     onLeagueClosed: () => {
-      laneOpponentOverrideCellId = null;
+      manualEnemyRoles = {};
       hideOverlay();
       if (dashboardWindow) {
         dashboardWindow.webContents.send('session-ended');
@@ -488,15 +504,17 @@ ipcMain.on('navigate-to', (event, page) => {
   if (dashboardWindow) dashboardWindow.loadFile(`src/${page}.html`);
 });
 
-// Overlay or dashboard -> main: the player clicked a specific enemy
-// portrait to say "this is who I'm laning against," overriding the
-// position-based auto-guess. Applied on the next poll tick (~2s, same
-// cadence as everything else) - no need to force an immediate re-send.
-// A non-number is ignored rather than stored, so a stray/garbled message
-// can't silently wipe out a real override.
-ipcMain.on('set-lane-opponent', (event, cellId) => {
-  if (typeof cellId !== 'number') return;
-  laneOpponentOverrideCellId = cellId;
+// Overlay or dashboard -> main: the player dragged an enemy portrait into
+// a role slot (either swapping it with whoever was already there, or
+// moving it into an empty slot - the renderer works out which and sends
+// one call per cellId that actually changed role). Applied on the next
+// poll tick (~2s, same cadence as everything else) - no need to force an
+// immediate re-send. Malformed input is ignored rather than stored, so a
+// stray/garbled message can't silently corrupt the layout.
+const VALID_ROLES = ['top', 'jungle', 'middle', 'bottom', 'utility'];
+ipcMain.on('set-enemy-role', (event, { cellId, role } = {}) => {
+  if (typeof cellId !== 'number' || !VALID_ROLES.includes(role)) return;
+  manualEnemyRoles[cellId] = role;
 });
 
 // Settings page: every champion Data Dragon knows about, each with an
@@ -521,7 +539,8 @@ ipcMain.handle('get-patch-options', () => ({
 
 // Renderer -> main: the settings page pushes updates here.
 // Accepts a partial update, e.g. { championPool: [...] }, { populationTier: 'DIAMOND' },
-// or { patchFilter: { type: 'days', days: 30 } }.
+// { patchFilter: { type: 'days', days: 30 } }, or
+// { confidenceWeighting: { enabled: true, threshold: 20 } }.
 ipcMain.on('update-settings', (event, updates) => {
   userConfig = { ...userConfig, ...updates };
   saveUserConfig(userConfig);

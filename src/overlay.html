@@ -270,39 +270,101 @@
         .enemy-comp {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
+        }
+
+        /* Each slot is a small stacked box: a role-label layer underneath,
+           normally fully covered by the portrait sitting on top of it -
+           like a lid on a box. Sized here so the (bigger) assumed-opponent
+           slot doesn't shift its neighbors when it grows. */
+        .enemy-slot {
+            position: relative;
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .enemy-slot.assumed-slot {
+            width: 30px;
+            height: 30px;
+        }
+
+        .role-reveal {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Barlow Semi Condensed', sans-serif;
+            font-size: 8px;
+            letter-spacing: 0.5px;
+            color: var(--parchment-faint);
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px dashed rgba(200, 155, 60, 0.4);
+            opacity: 0;
+            transition: opacity 0.12s ease;
+            pointer-events: none;
+        }
+
+        /* Official Riot role icon shown as the backdrop underneath a
+           lifted portrait mid-drag (see .role-reveal above). Falls back to
+           the plain text label (see wireRoleRevealFallbacks()) if the
+           CommunityDragon asset ever 404s, rather than a broken-image icon. */
+        .role-reveal-icon {
+            width: 14px;
+            height: 14px;
+            object-fit: contain;
+            opacity: 0.9;
+        }
+
+        /* The portrait is the "lid" - lifting it (dragging it away)
+           reveals the role-reveal layer underneath, which is otherwise
+           always fully hidden behind it. */
+        .enemy-slot.drag-source .role-reveal {
+            opacity: 1;
+        }
+
+        .enemy-slot.drag-source .portrait {
+            opacity: 0;
+        }
+
+        /* Highlighted while a dragged portrait is currently hovering over
+           this slot as a potential drop target - a plain highlight only,
+           no role-reveal here (that's source-only, see above). */
+        .enemy-slot.drag-target {
+            outline: 2px dashed var(--gold-bright);
+            outline-offset: 2px;
         }
 
         .enemy-comp .portrait {
-            width: 24px;
-            height: 24px;
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
             font-size: 8px;
+            /* Every enemy portrait reads as "enemy" via a red-toned border,
+               not just the assumed opponent - matches the red already used
+               for the enemy team everywhere else (ban chips, team header). */
+            border-color: rgba(224, 138, 138, 0.55);
         }
 
-        /* Any enemy portrait that's actually been picked can be clicked to
-           say "this is who I'm laning against" - overrides the
-           position-based auto-guess. Empty/unpicked slots (dash
-           placeholders) are never clickable, since there's no champion yet
-           to pin as the opponent. */
-        .enemy-comp .portrait.clickable {
-            cursor: pointer;
+        /* Only a portrait with an actual champion picked can be dragged -
+           there's nothing to reassign from an empty/dash slot. */
+        .enemy-comp .portrait.draggable {
+            cursor: grab;
             transition: border-color 0.12s ease, transform 0.08s ease;
         }
 
-        .enemy-comp .portrait.clickable:hover {
-            border-color: var(--gold-bright);
+        .enemy-comp .portrait.draggable:hover {
+            border-color: var(--red);
             transform: translateY(-1px);
         }
 
-        /* The resolved lane opponent - reordered to the leftmost slot in
-           renderContextBar() and given a visibly different border/size so
-           it reads as "the one in question," not just another enemy pick.
-           Red, not gold - gold is reserved for "you"/your own pick
-           throughout the app, red already means "enemy" everywhere else
-           (ban chips, enemy team header). */
+        /* The resolved lane opponent - whichever slot matches the local
+           player's own role. Bigger and a fully saturated red border/glow
+           so it reads as "the one in question," distinct from the muted
+           red every other enemy portrait now carries. */
         .enemy-comp .portrait.assumed-opponent {
-            width: 30px;
-            height: 30px;
             font-size: 9px;
             border: 2px solid var(--red);
             box-shadow: 0 0 6px rgba(224, 138, 138, 0.5);
@@ -312,13 +374,42 @@
            dimmer border/background than a filled portrait. Deliberately
            just a plain dash rather than a role icon - a small position
            glyph wasn't actually legible enough at this size to tell lanes
-           apart, so it's not worth the visual noise. */
+           apart, so it's not worth the visual noise. Never draggable (no
+           champion to reassign) but still a valid drop target. */
         .role-placeholder {
             background: rgba(0, 0, 0, 0.2);
             border-color: rgba(200, 155, 60, 0.2);
             color: var(--parchment-faint);
             font-size: 14px;
             font-weight: 300;
+        }
+
+        /* Floating clone that follows the pointer while dragging - the
+           real portrait stays in place underneath (see drag-source above),
+           this is purely the "lifted" visual. */
+        .drag-ghost {
+            position: fixed;
+            z-index: 999;
+            pointer-events: none;
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--gold-bright);
+            overflow: hidden;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+            transform: translate(-50%, -50%) scale(1.15);
+            opacity: 0.95;
+        }
+
+        .drag-ghost img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        body.dragging-enemy,
+        body.dragging-enemy * {
+            cursor: grabbing !important;
         }
 
         .context-empty {
@@ -782,13 +873,13 @@
         let view = 'list'; // 'list' | 'detail'
         let expandedChampion = null;
         let collapsed = false;
-        // Optimistic client-side copy of "who did I just click as my lane
-        // opponent" - shown immediately on click, before main.js's next
-        // poll tick (~2s) confirms it back through session.laneOpponentCellId.
-        // A fresh overlay window is created per champ-select session (see
-        // showOverlay()/hideOverlay() in main.js), so this naturally resets
-        // to null every new draft without any explicit cleanup here.
-        let localOpponentOverrideCellId = null;
+        // Optimistic client-side copy of main.js's manualEnemyRoles - a
+        // dragged-and-dropped role reassignment shows immediately, before
+        // main.js's next poll tick (~2s) confirms it back through the
+        // session's theirTeam[].position. A fresh overlay window is
+        // created per champ-select session (see showOverlay()/hideOverlay()
+        // in main.js), so this naturally resets to {} every new draft.
+        let localRoleOverrides = {};
 
         function abbreviate(name) {
             return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
@@ -817,6 +908,36 @@
             document.querySelectorAll('.portrait img').forEach((img) => {
                 img.addEventListener('error', () => {
                     img.parentElement.textContent = img.dataset.fallback;
+                }, { once: true });
+            });
+        }
+
+        // Official Riot role icons (top/jungle/middle/bottom/utility), a
+        // local copy under assets/role-icons/ (see README's "one-time
+        // setup" section) rather than hot-linked from CommunityDragon -
+        // same reasoning as rankEmblemUrl() in lib/rankEmblem.js: this is
+        // a fixed, patch-independent asset, so there's no reason to depend
+        // on a third-party mirror's uptime for something that never
+        // changes. Used as the .role-reveal backdrop shown underneath a
+        // portrait while it's being dragged (previously just the plain
+        // SHORT_POSITION_LABELS text). `role` here is already the
+        // lowercase LCU-style key (top/jungle/middle/bottom/utility).
+        const ROLE_ICON_BASE = '../assets/role-icons/';
+        function roleIconUrl(role) {
+            return `${ROLE_ICON_BASE}${role}.png`;
+        }
+        function roleRevealIconHtml(role, fallbackLabel) {
+            return `<img class="role-reveal-icon" src="${roleIconUrl(role)}" alt="${fallbackLabel}" data-fallback="${fallbackLabel}">`;
+        }
+
+        // Swaps a broken role-reveal icon (assets/role-icons/ not fetched
+        // yet - see README) back to the plain text label it replaced -
+        // same graceful-degradation pattern as wirePortraitFallbacks() and
+        // wireTierIconFallback() below.
+        function wireRoleRevealFallbacks() {
+            document.querySelectorAll('.role-reveal-icon').forEach((img) => {
+                img.addEventListener('error', () => {
+                    img.replaceWith(document.createTextNode(img.dataset.fallback));
                 }, { once: true });
             });
         }
@@ -917,13 +1038,63 @@
             const roleText = posKey ? (SHORT_POSITION_LABELS[posKey] || posKey.toUpperCase()) : '—';
             const roleChip = `<div class="role-chip"><span class="role-text">${roleText}</span><span class="vs">vs</span></div>`;
 
-            // Always show exactly 5 slots so the row has a stable shape
-            // from the moment champ select opens, rather than growing one
-            // portrait at a time as picks land. Built in TOP/JG/MID/BOT/SUP
-            // order first (same fallback as before for custom games with
-            // blank assignedPosition), then reordered below so whichever
-            // slot is the resolved lane opponent moves to the front.
-            const theirTeam = session.theirTeam || [];
+            // Fixed TOP/JG/MID/BOT/SUP order, left to right - stable slot
+            // positions so a drag means something concrete (drop target =
+            // that role), rather than the row reshuffling around whichever
+            // pick currently matters most.
+            const slots = buildEnemySlots(effectiveEnemyTeam(session.theirTeam));
+
+            // "My opponent" is just whichever slot matches my own role, now
+            // that roles are fixed positions rather than a separately
+            // resolved guess. Falls back to whatever main.js already
+            // resolved server-side only when my own role isn't known yet
+            // (very early draft).
+            const mySlot = posKey ? slots.find((s) => s.role === posKey) : null;
+            const resolvedCellId = mySlot && mySlot.pick ? mySlot.pick.cellId : (session.laneOpponentCellId ?? null);
+
+            const slotsHtml = slots.map(({ role, pick }) => {
+                const isAssumed = Boolean(pick) && pick.cellId === resolvedCellId;
+                const wrapperClasses = ['enemy-slot', isAssumed ? 'assumed-slot' : ''].filter(Boolean).join(' ');
+                const roleLabel = SHORT_POSITION_LABELS[role] || role.toUpperCase();
+                const roleReveal = `<div class="role-reveal">${roleRevealIconHtml(role, roleLabel)}</div>`;
+
+                if (pick && pick.championName) {
+                    const portraitClasses = ['draggable', isAssumed ? 'assumed-opponent' : ''].filter(Boolean).join(' ');
+                    const title = isAssumed
+                        ? `Assumed opponent (${roleLabel}) — drag to reassign`
+                        : `Drag to reassign this champion's role`;
+                    const portrait = portraitHtml(
+                        pick.championName, pick.iconUrl, portraitClasses,
+                        `data-cell-id="${pick.cellId}" data-role="${role}" title="${title}"`
+                    );
+                    return `<div class="${wrapperClasses}" data-role="${role}">${roleReveal}${portrait}</div>`;
+                }
+
+                return `<div class="${wrapperClasses}" data-role="${role}">${roleReveal}<span class="portrait role-placeholder" title="${roleLabel}">&#8211;</span></div>`;
+            }).join('');
+
+            const rightSide = `<div class="enemy-comp">${slotsHtml}</div>`;
+
+            return `<div class="context-bar">${roleChip}${rightSide}</div>`;
+        }
+
+        // Applies any pending local drag overrides on top of the session's
+        // own theirTeam data, exactly mirroring how main.js applies
+        // manualEnemyRoles server-side - so the overlay's own bucketing
+        // and main.js's eventual confirmation never disagree once main.js
+        // catches up.
+        function effectiveEnemyTeam(theirTeam) {
+            return (theirTeam || []).map((p) => ({
+                ...p,
+                position: localRoleOverrides[p.cellId] || p.position
+            }));
+        }
+
+        // Buckets a (possibly locally-overridden) enemy team into the five
+        // fixed role slots: fill by position first, then drop anyone with a
+        // blank/unrecognized position into whatever slots are left, in
+        // order - same fallback custom games with no assignedPosition need.
+        function buildEnemySlots(theirTeam) {
             const byPosition = {};
             const unassigned = [];
             for (const p of theirTeam) {
@@ -934,58 +1105,138 @@
                     unassigned.push(p);
                 }
             }
-            let slots = ROLE_ORDER.map((role) => {
-                const pick = byPosition[role] || (unassigned.length > 0 ? unassigned.shift() : null);
-                return { role, pick };
-            });
-
-            // The local optimistic click wins immediately; once main.js's
-            // next poll tick confirms it, session.laneOpponentCellId will
-            // match it anyway, so preferring the local value never shows
-            // something main.js disagrees with - it's just faster.
-            const resolvedCellId = localOpponentOverrideCellId !== null
-                ? localOpponentOverrideCellId
-                : (session.laneOpponentCellId ?? null);
-
-            const opponentIndex = slots.findIndex((s) => s.pick && s.pick.cellId === resolvedCellId);
-            if (opponentIndex > 0) {
-                const [opponentSlot] = slots.splice(opponentIndex, 1);
-                slots.unshift(opponentSlot);
-            }
-
-            const slotsHtml = slots.map(({ role, pick }) => {
-                if (pick && pick.championName) {
-                    const isAssumed = pick.cellId === resolvedCellId;
-                    const classes = ['clickable', isAssumed ? 'assumed-opponent' : ''].filter(Boolean).join(' ');
-                    const title = isAssumed
-                        ? `Assumed opponent (${SHORT_POSITION_LABELS[role] || role.toUpperCase()}) — click another portrait to change`
-                        : `Click if this is actually who you're laning against`;
-                    return portraitHtml(pick.championName, pick.iconUrl, classes, `data-cell-id="${pick.cellId}" title="${title}"`);
-                }
-                const label = SHORT_POSITION_LABELS[role] || role.toUpperCase();
-                return `<span class="portrait role-placeholder" title="${label}">&#8211;</span>`;
-            }).join('');
-
-            const rightSide = `<div class="enemy-comp">${slotsHtml}</div>`;
-
-            return `<div class="context-bar">${roleChip}${rightSide}</div>`;
+            return ROLE_ORDER.map((role) => ({
+                role,
+                pick: byPosition[role] || (unassigned.length > 0 ? unassigned.shift() : null)
+            }));
         }
 
-        // Click handler for the enemy-comp row: any picked (clickable)
-        // portrait sets it as the lane opponent, both locally (instant
-        // visual feedback) and via IPC (so main.js recomputes Counter Δ
-        // and the report against the right person on the next poll tick).
-        function wireLaneOpponentClicks() {
-            document.querySelectorAll('.enemy-comp .portrait.clickable[data-cell-id]').forEach((el) => {
-                el.addEventListener('click', () => {
-                    const cellId = Number(el.dataset.cellId);
-                    localOpponentOverrideCellId = cellId;
-                    if (window.overlayAPI && window.overlayAPI.setLaneOpponent) {
-                        window.overlayAPI.setLaneOpponent(cellId);
+        // ---- enemy role drag-and-drop ----
+        //
+        // Replaces the old click-to-select lane opponent: dragging any
+        // picked enemy portrait into a role slot reassigns it there. If the
+        // target slot already holds another enemy, the two swap roles; if
+        // the target is empty, the dragged enemy just moves there. Both
+        // cases flow through the same "effective position" mechanism
+        // main.js uses server-side (manualEnemyRoles), so lane-opponent
+        // resolution, Counter Δ, and the report all pick up the change
+        // automatically - "who's my opponent" is just whichever slot ends
+        // up matching the player's own role, nothing else to wire.
+
+        let dragState = null; // { cellId, sourceRole, ghostEl, currentTargetRole }
+
+        function startEnemyDrag(e, cellId, sourceRole, portraitEl, slotEl) {
+            e.preventDefault();
+
+            const ghost = document.createElement('div');
+            ghost.className = 'drag-ghost';
+            ghost.innerHTML = portraitEl.innerHTML;
+            ghost.style.left = `${e.clientX}px`;
+            ghost.style.top = `${e.clientY}px`;
+            document.body.appendChild(ghost);
+            document.body.classList.add('dragging-enemy');
+
+            // The portrait is the "lid" over this slot's role label - lift
+            // it away (fade it out) and the role-reveal underneath shows
+            // through, via the .drag-source CSS rules.
+            slotEl.classList.add('drag-source');
+
+            dragState = { cellId, sourceRole, ghostEl: ghost, currentTargetRole: null };
+
+            const onMove = (moveEvent) => {
+                if (!dragState) return;
+                dragState.ghostEl.style.left = `${moveEvent.clientX}px`;
+                dragState.ghostEl.style.top = `${moveEvent.clientY}px`;
+
+                let hoveredRole = null;
+                document.querySelectorAll('.enemy-slot').forEach((slot) => {
+                    const r = slot.getBoundingClientRect();
+                    const inside = moveEvent.clientX >= r.left && moveEvent.clientX <= r.right
+                        && moveEvent.clientY >= r.top && moveEvent.clientY <= r.bottom;
+                    slot.classList.toggle('drag-target', inside);
+                    if (inside) hoveredRole = slot.dataset.role;
+                });
+                dragState.currentTargetRole = hoveredRole;
+            };
+
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                finishEnemyDrag();
+            };
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+
+        function finishEnemyDrag() {
+            if (!dragState || !lastSession) { dragState = null; return; }
+            const { cellId, sourceRole, ghostEl, currentTargetRole } = dragState;
+
+            ghostEl.remove();
+            document.body.classList.remove('dragging-enemy');
+            document.querySelectorAll('.enemy-slot').forEach((slot) => {
+                slot.classList.remove('drag-source', 'drag-target');
+            });
+
+            // Dropped outside every slot, or back onto the slot it started
+            // in - no-op, nothing to send.
+            if (currentTargetRole && currentTargetRole !== sourceRole) {
+                const slots = buildEnemySlots(effectiveEnemyTeam(lastSession.theirTeam));
+                const targetSlot = slots.find((s) => s.role === currentTargetRole);
+                const occupant = targetSlot ? targetSlot.pick : null;
+
+                localRoleOverrides[cellId] = currentTargetRole;
+                if (window.overlayAPI && window.overlayAPI.setEnemyRole) {
+                    window.overlayAPI.setEnemyRole(cellId, currentTargetRole);
+                }
+
+                // Target slot already had someone in it - swap, don't just
+                // overwrite them (they'd otherwise vanish from every role).
+                if (occupant && occupant.cellId !== cellId) {
+                    localRoleOverrides[occupant.cellId] = sourceRole;
+                    if (window.overlayAPI && window.overlayAPI.setEnemyRole) {
+                        window.overlayAPI.setEnemyRole(occupant.cellId, sourceRole);
                     }
-                    renderCurrent();
+                }
+            }
+
+            dragState = null;
+            renderCurrent();
+        }
+
+        function wireEnemyDrag() {
+            document.querySelectorAll('.enemy-slot .portrait.draggable[data-cell-id]').forEach((el) => {
+                el.addEventListener('mousedown', (e) => {
+                    const slotEl = el.closest('.enemy-slot');
+                    const cellId = Number(el.dataset.cellId);
+                    const sourceRole = el.dataset.role;
+                    startEnemyDrag(e, cellId, sourceRole, el, slotEl);
                 });
             });
+        }
+
+        // A drag holds no reference to the DOM node it lifted beyond the
+        // moment startEnemyDrag() adds .drag-source to it - any render
+        // that happens while dragging (a live session update, which lands
+        // every ~2s regardless of what the user is doing) tears down and
+        // rebuilds that node, silently dropping the class along with it.
+        // dragState.cellId survives that rebuild (it's just a number), so
+        // once the new DOM exists this finds wherever that champion's
+        // portrait landed and re-lifts it - same for the currently
+        // hovered drop target, if any. mousemove's own hit-testing already
+        // re-queries .enemy-slot live on every move, so it needs no such
+        // fix-up; this is only for the state a render silently erases.
+        function reapplyDragVisual() {
+            if (!dragState) return;
+            const portrait = document.querySelector(`.portrait[data-cell-id="${dragState.cellId}"]`);
+            const slotEl = portrait ? portrait.closest('.enemy-slot') : null;
+            if (slotEl) slotEl.classList.add('drag-source');
+
+            if (dragState.currentTargetRole) {
+                const targetSlot = document.querySelector(`.enemy-slot[data-role="${dragState.currentTargetRole}"]`);
+                if (targetSlot) targetSlot.classList.add('drag-target');
+            }
         }
 
         function renderFooter(session) {
@@ -1069,7 +1320,9 @@
 
             wirePortraitFallbacks();
             wireTierIconFallback();
-            wireLaneOpponentClicks();
+            wireRoleRevealFallbacks();
+            wireEnemyDrag();
+            reapplyDragVisual();
             fitToContent();
         }
 
@@ -1171,6 +1424,12 @@
         function render(session) {
             lastSession = session;
             document.getElementById('timer').textContent = formatTime(session.timeLeftSeconds);
+            // Always re-render, even mid-drag - a new enemy pick/ban or a
+            // timer tick during a drag should still show up live. What
+            // caused the "pop back" look wasn't the re-render itself, it
+            // was that re-rendering wipes the .drag-source class straight
+            // off the dragged slot (see renderList()'s reapplyDragVisual()
+            // call, which puts it right back based on dragState.cellId).
             renderCurrent();
         }
 
