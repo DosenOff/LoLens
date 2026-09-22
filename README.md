@@ -45,6 +45,7 @@ npm install
 cp .env.example .env   # then fill in your Riot API key and Riot ID
 npm start
 ```
+(Windows Command Prompt has no `cp` - use `copy .env.example .env` instead; PowerShell accepts `cp` as-is.)
  
 To pull your own match history for personal matchup stats:
 ```
@@ -61,6 +62,8 @@ npm run fetch-population-data
 To get real rank emblem art for the overlay's tier badge (one-time setup -
 this is a static Riot-hosted asset, not something that needs regenerating
 per patch):
+
+macOS/Linux:
 ```
 curl -fL https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip -o ranked-emblems.zip
 mkdir -p assets/rank-emblems
@@ -73,6 +76,20 @@ done
 cd ..
 rm -rf "Ranked Emblems Latest" "Tier Wings" "Wings"
 ```
+
+Windows (PowerShell):
+```
+Invoke-WebRequest https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip -OutFile ranked-emblems.zip
+New-Item -ItemType Directory -Force assets\rank-emblems | Out-Null
+Expand-Archive ranked-emblems.zip assets\rank-emblems
+Set-Location "assets\rank-emblems\Ranked Emblems Latest"
+Get-ChildItem "Rank=*.png" | ForEach-Object {
+  $name = ($_.BaseName -replace '^Rank=', '').ToLower()
+  Move-Item $_.FullName "..\$name.png"
+}
+Set-Location ..
+Remove-Item -Recurse -Force "Ranked Emblems Latest", "Tier Wings", "Wings"
+```
 Without this, the overlay's tier badge falls back to a plain gold diamond
 rather than the real emblem - it degrades gracefully, it just won't look
 as sharp.
@@ -80,6 +97,8 @@ as sharp.
 To get the real role icons the overlay shows underneath a portrait while
 it's being dragged (one-time setup - these are fixed, patch-independent
 assets, not something that needs regenerating per patch):
+
+macOS/Linux:
 ```
 mkdir -p assets/role-icons
 BASE="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions"
@@ -87,12 +106,22 @@ for role in top jungle middle bottom utility; do
   curl -fL "$BASE/icon-position-$role.png" -o "assets/role-icons/$role.png"
 done
 ```
+
+Windows (PowerShell):
+```
+New-Item -ItemType Directory -Force assets\role-icons | Out-Null
+$base = "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions"
+foreach ($role in "top","jungle","middle","bottom","utility") {
+  Invoke-WebRequest "$base/icon-position-$role.png" -OutFile "assets\role-icons\$role.png"
+}
+```
 Without this, that drag backdrop falls back to the plain TOP/JG/MID/BOT/SUP
 text label instead of the icon - again, degrades gracefully rather than
 showing a broken image. If CommunityDragon is ever down or this path
 changes, browse
 https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/
-directly to find the current filenames and adjust the curl loop above.
+directly to find the current filenames and adjust the loop above.
+
 
 ## Roadmap
 

@@ -371,10 +371,11 @@
         }
 
         /* Empty role slot shown before that position's pick comes in -
-           dimmer border/background than a filled portrait. Deliberately
-           just a plain dash rather than a role icon - a small position
-           glyph wasn't actually legible enough at this size to tell lanes
-           apart, so it's not worth the visual noise. Never draggable (no
+           dimmer border/background than a filled portrait. '?' rather than
+           a role icon - a small position glyph wasn't actually legible
+           enough at this size to tell lanes apart - and matches the same
+           '?' home.html already uses for an empty portrait slot, rather
+           than the plain dash this used to show. Never draggable (no
            champion to reassign) but still a valid drop target. */
         .role-placeholder {
             background: rgba(0, 0, 0, 0.2);
@@ -1070,7 +1071,7 @@
                     return `<div class="${wrapperClasses}" data-role="${role}">${roleReveal}${portrait}</div>`;
                 }
 
-                return `<div class="${wrapperClasses}" data-role="${role}">${roleReveal}<span class="portrait role-placeholder" title="${roleLabel}">&#8211;</span></div>`;
+                return `<div class="${wrapperClasses}" data-role="${role}">${roleReveal}<span class="portrait role-placeholder" title="${roleLabel}">?</span></div>`;
             }).join('');
 
             const rightSide = `<div class="enemy-comp">${slotsHtml}</div>`;

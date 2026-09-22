@@ -124,6 +124,12 @@ function createDashboardWindow() {
     minHeight: 480,
     backgroundColor: '#0A0E14',
     title: 'LoLens',
+    // Packaged builds get their icon from build.win.icon/build.mac.icon in
+    // package.json - this is only for `npm start`'s unpackaged window,
+    // where Windows otherwise shows the generic Electron icon in the
+    // taskbar. macOS ignores this option (it uses the app bundle's icon
+    // instead), so it's a no-op there rather than something to branch on.
+    icon: path.join(__dirname, 'assets', 'icon', 'icon-256.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -248,14 +254,25 @@ function hideOverlay() {
 }
 
 function createTray() {
-  // Tray requires an icon image; rather than shipping an icon asset right
-  // now, we use a transparent 1x1 image and a text title on macOS (Tray
-  // supports setTitle() as a menu-bar label). Swap in a real icon file later
-  // without changing anything else here.
+  // Real tray icon: the "lo" mark from the LoLens wordmark (the lowercase
+  // l+o reads as a magnifying glass) - see assets/icon/. Sized per each
+  // platform's own tray/menu-bar convention: 16px is the Windows/Linux
+  // norm, macOS's menu bar wants something closer to ~22px so it doesn't
+  // look undersized next to the system's own icons. setImage() (not just
+  // the constructor) so this also works if createTray() is ever called
+  // again after startup.
   const { nativeImage } = require('electron');
-  const emptyIcon = nativeImage.createEmpty();
-  tray = new Tray(emptyIcon);
+  const trayIconPath = path.join(
+    __dirname,
+    'assets', 'icon',
+    process.platform === 'darwin' ? 'icon-24.png' : 'icon-16.png'
+  );
+  const trayIcon = nativeImage.createFromPath(trayIconPath);
+  tray = new Tray(trayIcon);
   if (process.platform === 'darwin') {
+    // Redundant with the icon now, but a harmless extra label already in
+    // place - keep it rather than risk losing a click target/affordance
+    // someone may be relying on.
     tray.setTitle('LoLens');
   }
 

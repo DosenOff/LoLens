@@ -384,15 +384,38 @@
             color: var(--gold-bright);
         }
 
-        /* Enemy slots with a champion picked can be clicked to say "this is who
-     I'm laning against" - overrides the position-based auto-guess. */
-        .slot.clickable {
-            cursor: pointer;
+        /* Enemy rows with a champion picked can be dragged into another
+           role slot to correct it - if that slot already holds someone
+           else, the two swap; if it's empty, this one just moves there. */
+        .slot.draggable {
+            cursor: grab;
             transition: border-color 0.12s ease, background 0.12s ease;
         }
 
-        .slot.clickable:hover {
+        .slot.draggable:hover {
             border-color: var(--gold-bright);
+        }
+
+        /* Dimmed while its portrait is being dragged elsewhere - a visual
+           "this one is currently in motion" cue, not a role reveal (this
+           row layout already shows its role permanently via .role-box,
+           unlike the overlay's compact icon-only slots). */
+        .slot.drag-source {
+            opacity: 0.35;
+        }
+
+        /* Highlighted while a dragged row is hovering over this one as a
+           potential drop target. */
+        .slot.drag-target {
+            outline: 2px dashed var(--gold-bright);
+            outline-offset: -2px;
+        }
+
+        /* Every enemy portrait reads as "enemy" via a red-toned border, not
+           just the resolved lane opponent - matches the red already used
+           for the enemy team everywhere else (ban chips, side header). */
+        .slot.enemy-row.filled .portrait {
+            border-color: rgba(224, 138, 138, 0.55);
         }
 
         /* The resolved lane opponent. Red, not gold - gold is reserved for
@@ -402,6 +425,11 @@
             border-color: var(--red);
             box-shadow: 0 0 0 1px var(--red) inset, 0 0 8px rgba(199, 75, 75, 0.3);
             background: rgba(199, 75, 75, 0.1);
+        }
+
+        .slot.lane-opponent .portrait {
+            border-color: var(--red);
+            box-shadow: 0 0 6px rgba(199, 75, 75, 0.4);
         }
 
         .role-box {
@@ -473,6 +501,48 @@
 
         .slot.filled .name {
             color: var(--parchment);
+        }
+
+        /* Floating chip that follows the pointer while dragging an enemy
+           row - a compact icon+name preview, same visual language as the
+           settings page's pool-chip. The real row stays put underneath
+           (dimmed - see .drag-source above). */
+        .drag-ghost {
+            position: fixed;
+            z-index: 999;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px 4px 5px;
+            background: var(--navy-panel);
+            border: 1px solid var(--gold-bright);
+            border-radius: 14px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+            transform: translate(-50%, -50%) scale(1.05);
+            font-family: 'Oswald', sans-serif;
+            font-size: 12px;
+            color: var(--parchment);
+        }
+
+        .drag-ghost .ghost-portrait {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 1px solid rgba(200, 155, 60, 0.4);
+        }
+
+        .drag-ghost .ghost-portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        body.dragging-enemy,
+        body.dragging-enemy * {
+            cursor: grabbing !important;
         }
 
         .side-bans {
@@ -938,8 +1008,9 @@
         // Renders one team's five role-ordered rows. `side` just controls the
         // accent color and which extra behavior applies: the ally side
         // highlights the local player's own role (gold, dashed placeholder
-        // until they've picked); the enemy side makes picked rows clickable
-        // to set the lane opponent (red highlight - see wireLaneOpponentClicks).
+        // until they've picked); the enemy side makes picked rows draggable
+        // so the player can drop one onto another to swap their roles, or
+        // onto an empty slot to move it there (see wireEnemyDrag below).
         function renderRoleColumn(containerId, players, opts) {
             const { side, myPositionKey = null, opponentCellId = null } = opts;
             const el = document.getElementById(containerId);
@@ -948,8 +1019,8 @@
             el.innerHTML = slots.map(({ role, pick }) => {
                 const filled = Boolean(pick && pick.championName);
                 const isMyRole = side === 'ally' && role === myPositionKey;
-                const isClickable = side === 'enemy' && filled;
-                const isLaneOpponent = isClickable && pick.cellId === opponentCellId;
+                const isDraggable = side === 'enemy' && filled;
+                const isLaneOpponent = isDraggable && pick.cellId === opponentCellId;
 
                 const classes = [
                     'slot',
@@ -957,14 +1028,14 @@
                     filled ? 'filled' : '',
                     isMyRole && filled ? 'active' : '',
                     isMyRole && !filled ? 'your-pick-pending' : '',
-                    isClickable ? 'clickable' : '',
+                    isDraggable ? 'draggable' : '',
                     isLaneOpponent ? 'lane-opponent' : ''
                 ].filter(Boolean).join(' ');
 
-                const cellAttr = isClickable ? ` data-cell-id="${pick.cellId}"` : '';
+                const cellAttr = isDraggable ? ` data-cell-id="${pick.cellId}" data-role="${role}"` : '';
                 const titleAttr = isLaneOpponent
-                    ? ' title="Assumed opponent — click another enemy to change"'
-                    : (isClickable ? ' title="Click if this is who you\'re laning against"' : '');
+                    ? ' title="Assumed opponent — drag another enemy here to change"'
+                    : (isDraggable ? ' title="Drag to reassign this champion\'s role"' : '');
 
                 const portraitInner = filled
                     ? (pick.iconUrl
@@ -976,7 +1047,7 @@
                     : (isMyRole ? '— Your pick —' : 'Waiting');
 
                 return `
-        <div class="${classes}"${cellAttr}${titleAttr}>
+        <div class="${classes}"${cellAttr}${titleAttr} data-role="${role}">
           <div class="role-box"><span class="role-abbr">${SHORT_POSITION_LABELS[role]}</span></div>
           <div class="portrait">${portraitInner}</div>
           <div class="name">${nameText}</div>
@@ -984,20 +1055,114 @@
             }).join('');
         }
 
-        // Click handler for the enemy column: any clickable (picked) row
-        // sets it as the lane opponent, both locally (instant visual feedback -
-        // localOpponentOverrideCellId, defined below) and via IPC, so main.js
-        // recomputes Counter Δ and the report against the right person on the
-        // next poll tick (~2s).
-        function wireLaneOpponentClicks() {
-            document.querySelectorAll('#theirRoleRows .slot.clickable[data-cell-id]').forEach((el) => {
-                el.addEventListener('click', () => {
-                    const cellId = Number(el.dataset.cellId);
-                    localOpponentOverrideCellId = cellId;
-                    if (window.draftAPI && window.draftAPI.setLaneOpponent) {
-                        window.draftAPI.setLaneOpponent(cellId);
+        // Applies any pending local drag overrides on top of the session's
+        // own theirTeam data, exactly mirroring how main.js applies
+        // manualEnemyRoles server-side - so this column's own bucketing and
+        // main.js's eventual confirmation never disagree once it catches up.
+        function effectiveEnemyTeam(theirTeam) {
+            return (theirTeam || []).map((p) => ({
+                ...p,
+                position: localRoleOverrides[p.cellId] || p.position
+            }));
+        }
+
+        // ---- enemy role drag-and-drop ----
+        //
+        // Dragging a picked enemy row onto another role slot reassigns it
+        // there. If the target already holds someone else, the two swap
+        // roles; if it's empty, the dragged one just moves there. Both
+        // cases flow through the same manualEnemyRoles mechanism main.js
+        // already uses (same setEnemyRole IPC call the overlay uses), so
+        // Counter Δ and the report pick up the change automatically -
+        // "who's my opponent" is just whichever slot matches my own role.
+
+        let dragState = null; // { cellId, sourceRole, ghostEl, currentTargetRole }
+
+        function startEnemyDrag(e, cellId, sourceRole, rowEl) {
+            e.preventDefault();
+
+            const nameText = rowEl.querySelector('.name').textContent;
+            const portraitHtmlInner = rowEl.querySelector('.portrait').innerHTML;
+            const ghost = document.createElement('div');
+            ghost.className = 'drag-ghost';
+            ghost.innerHTML = `<span class="ghost-portrait">${portraitHtmlInner}</span><span>${nameText}</span>`;
+            ghost.style.left = `${e.clientX}px`;
+            ghost.style.top = `${e.clientY}px`;
+            document.body.appendChild(ghost);
+            document.body.classList.add('dragging-enemy');
+
+            rowEl.classList.add('drag-source');
+
+            dragState = { cellId, sourceRole, ghostEl: ghost, currentTargetRole: null };
+
+            const onMove = (moveEvent) => {
+                if (!dragState) return;
+                dragState.ghostEl.style.left = `${moveEvent.clientX}px`;
+                dragState.ghostEl.style.top = `${moveEvent.clientY}px`;
+
+                let hoveredRole = null;
+                document.querySelectorAll('#theirRoleRows .slot').forEach((slot) => {
+                    const r = slot.getBoundingClientRect();
+                    const inside = moveEvent.clientX >= r.left && moveEvent.clientX <= r.right
+                        && moveEvent.clientY >= r.top && moveEvent.clientY <= r.bottom;
+                    slot.classList.toggle('drag-target', inside);
+                    if (inside) hoveredRole = slot.dataset.role;
+                });
+                dragState.currentTargetRole = hoveredRole;
+            };
+
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                finishEnemyDrag();
+            };
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+
+        function finishEnemyDrag() {
+            if (!dragState || !lastSession) { dragState = null; return; }
+            const { cellId, sourceRole, ghostEl, currentTargetRole } = dragState;
+
+            ghostEl.remove();
+            document.body.classList.remove('dragging-enemy');
+            document.querySelectorAll('#theirRoleRows .slot').forEach((slot) => {
+                slot.classList.remove('drag-source', 'drag-target');
+            });
+
+            // Dropped outside every slot, or back onto the one it started
+            // in - no-op, nothing to send.
+            if (currentTargetRole && currentTargetRole !== sourceRole) {
+                const slots = buildRoleSlots(effectiveEnemyTeam(lastSession.theirTeam));
+                const targetSlot = slots.find((s) => s.role === currentTargetRole);
+                const occupant = targetSlot ? targetSlot.pick : null;
+
+                localRoleOverrides[cellId] = currentTargetRole;
+                if (window.draftAPI && window.draftAPI.setEnemyRole) {
+                    window.draftAPI.setEnemyRole(cellId, currentTargetRole);
+                }
+
+                // Target slot already had someone in it - swap, don't just
+                // overwrite them (they'd otherwise vanish from every role).
+                if (occupant && occupant.cellId !== cellId) {
+                    localRoleOverrides[occupant.cellId] = sourceRole;
+                    if (window.draftAPI && window.draftAPI.setEnemyRole) {
+                        window.draftAPI.setEnemyRole(occupant.cellId, sourceRole);
                     }
-                    if (lastSession) render(lastSession);
+                }
+            }
+
+            dragState = null;
+            render(lastSession);
+        }
+
+        function wireEnemyDrag() {
+            document.querySelectorAll('#theirRoleRows .slot.draggable[data-cell-id]').forEach((el) => {
+                el.addEventListener('mousedown', (e) => {
+                    const cellId = Number(el.dataset.cellId);
+                    const sourceRole = el.dataset.role;
+                    startEnemyDrag(e, cellId, sourceRole, el);
                 });
             });
         }
@@ -1013,12 +1178,13 @@
             const meta = document.getElementById('reportMeta');
             const body = document.getElementById('reportBody');
 
-            // resolvedOpponentCellId already accounts for a manual override (from
-            // wireLaneOpponentClicks) or main.js's auto-guess (position match,
-            // falling back to the first enemy pick) - see resolveLaneOpponentCellId()
-            // in main.js. Reporting stats against the wrong person is worse than
-            // just admitting nobody's picked yet, so this only ever shows data for
-            // that one resolved opponent, never a guess made independently here.
+            // resolvedOpponentCellId already accounts for a manual drag
+            // reassignment (from wireEnemyDrag) or main.js's auto-guess
+            // (position match, falling back to the first enemy pick) - see
+            // resolveLaneOpponentCellId() in main.js. Reporting stats
+            // against the wrong person is worse than just admitting
+            // nobody's picked yet, so this only ever shows data for that
+            // one resolved opponent, never a guess made independently here.
             const opponent = resolvedOpponentCellId !== null
                 ? session.theirTeam.find((p) => p.cellId === resolvedOpponentCellId)
                 : null;
@@ -1152,13 +1318,14 @@
         }
 
         let lastSession = null;
-        // Optimistic client-side copy of "who did I just click as my lane
-        // opponent" - shown immediately on click, before main.js's next poll
-        // tick (~2s) confirms it back through session.laneOpponentCellId.
-        // Unlike the overlay (a fresh window per draft), this dashboard window
-        // persists across champ-select sessions, so resetToIdle() below clears
-        // this explicitly when a draft ends.
-        let localOpponentOverrideCellId = null;
+        // Optimistic client-side copy of main.js's manualEnemyRoles - a
+        // dragged-and-dropped role reassignment shows immediately, before
+        // main.js's next poll tick (~2s) confirms it back through the
+        // session's theirTeam[].position. Unlike the overlay (a fresh
+        // window per draft), this dashboard window persists across champ
+        // select sessions, so resetToIdle() below clears this explicitly
+        // when a draft ends.
+        let localRoleOverrides = {};
 
         function render(session) {
             lastSession = session;
@@ -1169,16 +1336,21 @@
             document.getElementById('turnLabel').textContent = session.isMyTurn ? 'Your turn to pick' : 'Waiting for other players...';
             document.getElementById('turnTimer').textContent = formatTime(session.timeLeftSeconds);
 
-            // The local click wins immediately; once main.js catches up,
-            // session.laneOpponentCellId will match it anyway, so preferring the
-            // local value never shows something main.js disagrees with - it's
-            // just faster. See wireLaneOpponentClicks() above.
-            const resolvedOpponentCellId = localOpponentOverrideCellId !== null
-                ? localOpponentOverrideCellId
-                : (session.laneOpponentCellId ?? null);
-
             const myPick = (session.myTeam || []).find((p) => p.cellId === session.localPlayerCellId);
             const myPositionKey = myPick && myPick.position ? myPick.position.toLowerCase() : null;
+
+            // Any pending local drag overrides win immediately; once main.js
+            // catches up, session.theirTeam[].position will match anyway, so
+            // preferring the local value never shows something main.js
+            // disagrees with - it's just faster. See wireEnemyDrag() above.
+            const effectiveTheirTeam = effectiveEnemyTeam(session.theirTeam);
+            const enemySlots = buildRoleSlots(effectiveTheirTeam);
+            // "My opponent" is whichever slot matches my own role, now that
+            // roles are fixed positions rather than a separately resolved
+            // guess. Falls back to whatever main.js already resolved
+            // server-side only when my own role isn't known yet.
+            const mySlot = myPositionKey ? enemySlots.find((s) => s.role === myPositionKey) : null;
+            const resolvedOpponentCellId = mySlot && mySlot.pick ? mySlot.pick.cellId : (session.laneOpponentCellId ?? null);
 
             // Role comes straight from champ select and the data window is a
             // Settings-page choice - both just displayed here, not editable
@@ -1205,10 +1377,10 @@
             }
 
             renderRoleColumn('myRoleRows', session.myTeam, { side: 'ally', myPositionKey });
-            renderRoleColumn('theirRoleRows', session.theirTeam, { side: 'enemy', opponentCellId: resolvedOpponentCellId });
+            renderRoleColumn('theirRoleRows', effectiveTheirTeam, { side: 'enemy', opponentCellId: resolvedOpponentCellId });
             wirePortraitFallbacks();
             wireTierIconFallback();
-            wireLaneOpponentClicks();
+            wireEnemyDrag();
             renderBans('myBans', session.bans.mine);
             renderBans('theirBans', session.bans.theirs);
             renderReport(session, resolvedOpponentCellId);
@@ -1219,7 +1391,7 @@
 
         function resetToIdle() {
             lastSession = null;
-            localOpponentOverrideCellId = null;
+            localRoleOverrides = {};
             document.getElementById('status').classList.remove('live');
             document.getElementById('statusText').textContent = 'Waiting for champion select...';
             document.getElementById('footerNote').textContent = 'connected to League · not in champion select';

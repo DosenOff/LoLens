@@ -15,6 +15,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('draftAPI', {
     onSessionUpdate: (callback) => ipcRenderer.on('session-update', (_event, data) => callback(data)),
     onSessionEnded: (callback) => ipcRenderer.on('session-ended', () => callback()),
+    onSettingsUpdate: (callback) => ipcRenderer.on('settings-update', (_event, data) => callback(data)),
     getSettings: () => ipcRenderer.invoke('get-settings'),
     updateSettings: (updates) => ipcRenderer.send('update-settings', updates),
     getChampionList: () => ipcRenderer.invoke('get-champion-list'),
