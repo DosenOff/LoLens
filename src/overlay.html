@@ -296,13 +296,16 @@
 
         /* The resolved lane opponent - reordered to the leftmost slot in
            renderContextBar() and given a visibly different border/size so
-           it reads as "the one in question," not just another enemy pick. */
+           it reads as "the one in question," not just another enemy pick.
+           Red, not gold - gold is reserved for "you"/your own pick
+           throughout the app, red already means "enemy" everywhere else
+           (ban chips, enemy team header). */
         .enemy-comp .portrait.assumed-opponent {
             width: 30px;
             height: 30px;
             font-size: 9px;
-            border: 2px solid var(--gold-bright);
-            box-shadow: 0 0 6px rgba(240, 199, 94, 0.45);
+            border: 2px solid var(--red);
+            box-shadow: 0 0 6px rgba(224, 138, 138, 0.5);
         }
 
         /* Empty role slot shown before that position's pick comes in -

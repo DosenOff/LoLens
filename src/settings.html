@@ -201,6 +201,7 @@
             margin-bottom: 6px;
         }
 
+        .hint,
         .field .hint {
             font-size: 10px;
             color: var(--parchment-faint);
@@ -302,6 +303,52 @@
         }
 
         .combo-search-input:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            margin-bottom: 14px;
+            font-size: 12.5px;
+            color: var(--parchment);
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--gold);
+            cursor: pointer;
+        }
+
+        .threshold-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12.5px;
+            color: var(--parchment-dim);
+        }
+
+        .number-input-inline {
+            width: 80px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--gold-dim);
+            color: var(--parchment);
+            padding: 7px 8px;
+            font-family: 'Barlow Semi Condensed', sans-serif;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .number-input-inline:focus {
+            outline: none;
+            border-color: var(--gold);
+        }
+
+        .number-input-inline:disabled {
             cursor: not-allowed;
             opacity: 0.5;
         }
@@ -535,6 +582,26 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="frame panel">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="panel-title">Confidence weighting</div>
+            <p class="panel-desc">Small samples count for less. A 4-1 data record is useful, but
+                it shouldn't outweigh hundreds of games. Confidence reduces the impact of personal, 
+                counter, and synergy stats when sample sizes are small. The population baseline is already 
+                built from thousands of games, so it stays unchanged.</p>
+            <label class="checkbox-row">
+                <input type="checkbox" id="weightingEnabledInput" checked>
+                <span>Enable sample size weighting</span>
+            </label>
+            <div class="threshold-row">
+                <span>Full weight at n &ge;</span>
+                <input type="number" min="1" step="1" class="number-input-inline" id="weightingThresholdInput">
+                <span>games</span>
+            </div>
+            <div class="hint" id="weightingExample"></div>
         </div>
 
         <div class="save-row">
@@ -825,6 +892,41 @@
             onOpen: () => renderChampList(champSearch.value)
         });
 
+        // ---- confidence weighting (one global constant) ----
+        let confidenceWeighting = { enabled: true, threshold: 20 };
+
+        const weightingEnabledInput = document.getElementById('weightingEnabledInput');
+        const weightingThresholdInput = document.getElementById('weightingThresholdInput');
+        const weightingExample = document.getElementById('weightingExample');
+
+        // Weight increases with sample size using sqrt(n / threshold), capped at 1.
+        // This gives diminishing returns as sample size grows: 50% of the threshold
+        // gives ~71% weight, while reaching the threshold gives full weight.
+        function updateWeightingExample() {
+            const t = confidenceWeighting.threshold;
+            const exampleGames = Math.round(t * 0.5);
+
+            weightingExample.textContent = confidenceWeighting.enabled
+                ? `e.g. at ${exampleGames} games (50% of your threshold) → ×${Math.sqrt(0.5).toFixed(2)} weight`
+                : 'Weighting is off - every delta counts at full strength regardless of sample size.';
+
+            weightingThresholdInput.disabled = !confidenceWeighting.enabled;
+        }
+
+        weightingEnabledInput.addEventListener('change', () => {
+            confidenceWeighting.enabled = weightingEnabledInput.checked;
+            updateWeightingExample();
+            persist();
+        });
+
+        weightingThresholdInput.addEventListener('change', () => {
+            const parsed = Math.max(1, Math.round(Number(weightingThresholdInput.value)) || confidenceWeighting.threshold);
+            confidenceWeighting.threshold = parsed;
+            weightingThresholdInput.value = parsed;
+            updateWeightingExample();
+            persist();
+        });
+
         async function init() {
             const [settings, championList, patchOptions] = await Promise.all([
                 window.draftAPI.getSettings(),
@@ -855,6 +957,11 @@
                 champSearch.placeholder = 'No champion data found — run fetch-champion-data.js';
             }
 
+            confidenceWeighting = { enabled: true, threshold: 20, ...(settings.confidenceWeighting || {}) };
+            weightingEnabledInput.checked = confidenceWeighting.enabled;
+            weightingThresholdInput.value = confidenceWeighting.threshold;
+            updateWeightingExample();
+
             renderPoolChips();
         }
 
@@ -866,7 +973,8 @@
             window.draftAPI.updateSettings({
                 championPools: pools,
                 populationTier: selectedTier,
-                patchFilter: decodePatchFilter(selectedPatchValue)
+                patchFilter: decodePatchFilter(selectedPatchValue),
+                confidenceWeighting
             });
 
             const note = document.getElementById('settingsSavedNote');

@@ -426,7 +426,8 @@ app.whenReady().then(() => {
         tier: userConfig.populationTier,
         enemyChampions: currentEnemyPicks,
         allyChampions: currentAllyPicks,
-        filter: userConfig.patchFilter
+        filter: userConfig.patchFilter,
+        confidenceWeighting: userConfig.confidenceWeighting
       }).map((r) => ({
         ...r,
         iconUrl: championIconUrl(r.champion),
