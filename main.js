@@ -283,9 +283,24 @@ function createTray() {
   ]);
   tray.setContextMenu(menu);
   tray.setToolTip('LoLens — watching for League');
+
+  // setContextMenu() alone only pops on an actual right-click on Windows.
+  // macOS treats left-click as "show the menu" by convention, so without
+  // this, Windows users have to right-click to get anything out of the
+  // tray icon at all - wire left-click to do the same thing there.
+  if (process.platform === 'win32') {
+    tray.on('click', () => tray.popUpContextMenu());
+  }
 }
 
 app.whenReady().then(() => {
+  // No File/Edit/View/Window/Help strip - LoLens is tray-first and none
+  // of those menus do anything useful here. On macOS this menu lives in
+  // the system menu bar and is invisible either way, but on Windows/Linux
+  // it renders as an ugly in-window strip on every BrowserWindow unless
+  // explicitly removed.
+  Menu.setApplicationMenu(null);
+
   if (process.platform === 'darwin') {
     app.dock.hide(); // background/menu-bar app, not a normal dock app
   }
@@ -563,7 +578,12 @@ ipcMain.on('update-settings', (event, updates) => {
   saveUserConfig(userConfig);
   console.log('User config updated:', updates);
   // The next champ-select poll tick will pick up the new config automatically -
-  // no need to force a re-send here.
+  // no need to force a re-send here for anything session-driven. But the
+  // dashboard's persistent population-tier/patch badge (home.html) has no
+  // session to wait on while idle, so push it there directly too.
+  if (dashboardWindow) {
+    dashboardWindow.webContents.send('settings-update', userConfig);
+  }
 });
 
 // Renderer asks for current settings when the settings page first opens.

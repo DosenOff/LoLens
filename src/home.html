@@ -450,15 +450,15 @@
             border-left: 3px solid rgba(199, 75, 75, 0.55);
         }
 
-        .role-box .role-abbr {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 9px;
-            letter-spacing: 0.5px;
-            color: var(--parchment-faint);
+        .role-box .role-icon {
+            width: 16px;
+            height: 16px;
+            object-fit: contain;
+            opacity: 0.55;
         }
 
-        .slot.filled .role-box .role-abbr {
-            color: var(--parchment-dim);
+        .slot.filled .role-box .role-icon {
+            opacity: 0.85;
         }
 
         .slot .portrait {
@@ -977,6 +977,47 @@
             }, { once: true });
         }
 
+        // Official Riot role icons (top/jungle/middle/bottom/utility), a
+        // local copy under assets/role-icons/ (see README's "one-time
+        // setup" section) rather than hot-linked from CommunityDragon -
+        // same reasoning as rankEmblemUrl() below: this is a fixed,
+        // patch-independent asset, so there's no reason to depend on a
+        // third-party mirror's uptime for something that never changes.
+        // Mirrors overlay.html's roleIconUrl() exactly, since it's the
+        // same asset used the same way. `role` here is already the
+        // lowercase LCU-style key (top/jungle/middle/bottom/utility).
+        const ROLE_ICON_BASE = '../assets/role-icons/';
+        function roleIconUrl(role) {
+            return `${ROLE_ICON_BASE}${role}.png`;
+        }
+        function roleIconHtml(role, label) {
+            return `<img class="role-icon" src="${roleIconUrl(role)}" alt="${label}" title="${label}" data-fallback="${label}">`;
+        }
+
+        // Swaps a broken role icon back to the plain text label it
+        // replaced (TOP/JG/MID/...) - same graceful-degradation pattern as
+        // wirePortraitFallbacks()/wireTierIconFallback() above, and
+        // overlay.html's wireRoleRevealFallbacks() for this same asset.
+        function wireRoleIconFallbacks() {
+            document.querySelectorAll('.role-icon').forEach((img) => {
+                img.addEventListener('error', () => {
+                    img.replaceWith(document.createTextNode(img.dataset.fallback));
+                }, { once: true });
+            });
+        }
+
+        // Duplicated (deliberately - it's a trivial pure string formula,
+        // not worth an IPC round trip) from lib/rankEmblem.js's logic,
+        // same as settings.html already does. Needed here so the
+        // persistent population badge (renderPopulationBadge below) can
+        // show the right emblem from raw Settings data, not just from a
+        // live session's precomputed session.tierEmblemUrl.
+        function rankEmblemUrl(tier) {
+            if (!tier) return null;
+            const key = tier.replace('_PLUS', '').replace('+', '').toLowerCase();
+            return `../assets/rank-emblems/${key}.png`;
+        }
+
         function patchFilterLabel(filter) {
             if (!filter || filter.type === 'all') return 'all-time';
             if (filter.type === 'days') return `last ${filter.days}d`;
@@ -1048,7 +1089,7 @@
 
                 return `
         <div class="${classes}"${cellAttr}${titleAttr} data-role="${role}">
-          <div class="role-box"><span class="role-abbr">${SHORT_POSITION_LABELS[role]}</span></div>
+          <div class="role-box">${roleIconHtml(role, SHORT_POSITION_LABELS[role])}</div>
           <div class="portrait">${portraitInner}</div>
           <div class="name">${nameText}</div>
         </div>`;
@@ -1352,17 +1393,49 @@
             const mySlot = myPositionKey ? enemySlots.find((s) => s.role === myPositionKey) : null;
             const resolvedOpponentCellId = mySlot && mySlot.pick ? mySlot.pick.cellId : (session.laneOpponentCellId ?? null);
 
-            // Role comes straight from champ select and the data window is a
-            // Settings-page choice - both just displayed here, not editable
-            // controls duplicating those.
+            // Role comes straight from champ select - shown here, not an
+            // editable control duplicating Settings. The data window/tier
+            // badge next to it is a Settings-page choice, so it's rendered
+            // by renderPopulationBadge() below - the same function idle
+            // startup and Settings-page changes use, so it stays correct
+            // whether or not a draft is actually in progress.
             document.getElementById('yourRoleValue').textContent = myPositionKey
                 ? (FULL_POSITION_LABELS[myPositionKey] || myPositionKey)
                 : '—';
-            document.getElementById('dataWindowValue').textContent = patchFilterLabel(session.patchFilter);
-            document.getElementById('tierValue').textContent = TIER_LABELS[session.populationTier] || session.populationTier || '—';
+            renderPopulationBadge(session);
+
+            renderRoleColumn('myRoleRows', session.myTeam, { side: 'ally', myPositionKey });
+            renderRoleColumn('theirRoleRows', effectiveTheirTeam, { side: 'enemy', opponentCellId: resolvedOpponentCellId });
+            wirePortraitFallbacks();
+            wireRoleIconFallbacks();
+            wireEnemyDrag();
+            renderBans('myBans', session.bans.mine);
+            renderBans('theirBans', session.bans.theirs);
+            renderReport(session, resolvedOpponentCellId);
+            renderBaselinePanel(session);
+            renderSynergyPanel(session);
+            renderRecommendations(session);
+        }
+
+        // Updates the persistent tier/data-window badge in the draft info
+        // bar from anything shaped like { populationTier, patchFilter } -
+        // a live session (which also carries a precomputed
+        // tierEmblemUrl, used here if present) or the raw Settings object
+        // fetched directly over IPC. Called on the initial idle paint, on
+        // every settings-update push, and from render() above, so the
+        // badge always reflects the Settings page's population tier/patch
+        // filter instead of falling back to "—" between drafts.
+        function renderPopulationBadge(source) {
+            const populationTier = source && source.populationTier;
+            const patchFilter = source && source.patchFilter;
+
+            document.getElementById('dataWindowValue').textContent = patchFilterLabel(patchFilter);
+            document.getElementById('tierValue').textContent = TIER_LABELS[populationTier] || populationTier || '—';
+
             const tierBadge = document.getElementById('tierBadge');
             const existingTierIcon = tierBadge.querySelector('.tier-icon, .tier-icon-fallback');
-            if (session.tierEmblemUrl) {
+            const emblemUrl = (source && source.tierEmblemUrl) || rankEmblemUrl(populationTier);
+            if (emblemUrl) {
                 if (!existingTierIcon || existingTierIcon.tagName !== 'IMG') {
                     if (existingTierIcon) existingTierIcon.remove();
                     const img = document.createElement('img');
@@ -1371,22 +1444,24 @@
                     img.alt = '';
                     tierBadge.prepend(img);
                 }
-                tierBadge.querySelector('.tier-icon').src = session.tierEmblemUrl;
+                tierBadge.querySelector('.tier-icon').src = emblemUrl;
             } else if (existingTierIcon && existingTierIcon.tagName === 'IMG') {
                 existingTierIcon.replaceWith(Object.assign(document.createElement('span'), { className: 'tier-icon-fallback' }));
             }
-
-            renderRoleColumn('myRoleRows', session.myTeam, { side: 'ally', myPositionKey });
-            renderRoleColumn('theirRoleRows', effectiveTheirTeam, { side: 'enemy', opponentCellId: resolvedOpponentCellId });
-            wirePortraitFallbacks();
             wireTierIconFallback();
-            wireEnemyDrag();
-            renderBans('myBans', session.bans.mine);
-            renderBans('theirBans', session.bans.theirs);
-            renderReport(session, resolvedOpponentCellId);
-            renderBaselinePanel(session);
-            renderSynergyPanel(session);
-            renderRecommendations(session);
+        }
+
+        // All 5 roles, both teams, showing "Waiting"/? rather than nothing -
+        // buildRoleSlots() already fills every ROLE_ORDER slot regardless of
+        // how many real players are passed in, so an empty array here is
+        // enough to get the same static row layout used once a draft is
+        // actually in progress. Used both for the very first paint (before
+        // League/champ-select is even detected) and by resetToIdle(), so
+        // "waiting" and "session just ended" look identical.
+        function renderIdleRoleColumns() {
+            renderRoleColumn('myRoleRows', [], { side: 'ally', myPositionKey: null });
+            renderRoleColumn('theirRoleRows', [], { side: 'enemy', opponentCellId: null });
+            wireRoleIconFallbacks();
         }
 
         function resetToIdle() {
@@ -1398,8 +1473,7 @@
             document.getElementById('turnLabel').textContent = 'Not in champion select';
             document.getElementById('turnTimer').textContent = '--:--';
             document.getElementById('yourRoleValue').textContent = '—';
-            document.getElementById('myRoleRows').innerHTML = '';
-            document.getElementById('theirRoleRows').innerHTML = '';
+            renderIdleRoleColumns();
             document.getElementById('myBans').innerHTML = '';
             document.getElementById('theirBans').innerHTML = '';
             document.getElementById('reportMeta').textContent = 'Waiting for a pick...';
@@ -1411,6 +1485,17 @@
 
         window.draftAPI.onSessionUpdate(render);
         window.draftAPI.onSessionEnded(resetToIdle);
+        window.draftAPI.onSettingsUpdate(renderPopulationBadge);
+
+        // Initial paint before League/champ-select is even detected: all 5
+        // roles shown statically (same idle look resetToIdle() produces)
+        // and the population badge read straight from disk via
+        // getSettings(), rather than leaving everything blank/"—" until
+        // the first session-update arrives.
+        renderIdleRoleColumns();
+        window.draftAPI.getSettings().then(renderPopulationBadge).catch(() => {
+            // Badge just stays at its default "—" if settings aren't ready yet.
+        });
     </script>
 </body>
 
