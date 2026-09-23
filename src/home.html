@@ -7,7 +7,7 @@
     <title>LoLens</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Teko:wght@400;500;600&family=Inter:wght@300;400;500&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap"        
         rel="stylesheet">
     <style>
         :root {
@@ -161,7 +161,7 @@
         }
 
         .status {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 10px;
             color: var(--parchment-dim);
             display: flex;
@@ -209,7 +209,7 @@
         }
 
         .turn-banner .timer {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 14px;
             color: var(--gold-bright);
         }
@@ -238,7 +238,7 @@
         }
 
         .info-label {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 9px;
             letter-spacing: 1px;
             text-transform: uppercase;
@@ -259,7 +259,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 11px;
             color: var(--parchment-dim);
         }
@@ -474,7 +474,7 @@
             justify-content: center;
             font-size: 8px;
             color: var(--parchment-faint);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             overflow: hidden;
         }
 
@@ -553,7 +553,7 @@
         }
 
         .side-bans-label {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 9px;
             letter-spacing: 1px;
             text-transform: uppercase;
@@ -575,7 +575,7 @@
             justify-content: center;
             font-size: 7px;
             color: var(--parchment-faint);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             position: relative;
         }
 
@@ -627,7 +627,7 @@
         }
 
         .report-header .meta {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 10px;
             color: var(--parchment-faint);
         }
@@ -669,7 +669,7 @@
         .matchup-card .stat-line {
             display: flex;
             justify-content: space-between;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 11px;
             color: var(--parchment-dim);
             margin-bottom: 3px;
@@ -743,7 +743,7 @@
         }
 
         .baseline-stat-value {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 16px;
         }
 
@@ -777,7 +777,7 @@
             display: flex;
             justify-content: space-between;
             font-size: 11px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
         }
 
         .synergy-row .ally {
@@ -804,7 +804,7 @@
 
         footer {
             margin-top: 12px;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Barlow Semi Condensed', sans-serif;
             font-size: 10px;
             color: var(--parchment-faint);
             text-align: center;
@@ -1208,6 +1208,30 @@
             });
         }
 
+        // A drag holds no reference to the DOM node it lifted beyond the
+        // moment startEnemyDrag() adds .drag-source to it - any render that
+        // happens while dragging (a live session update, which lands every
+        // ~2s regardless of what the user is doing) tears down and rebuilds
+        // that node via renderRoleColumn(), silently dropping the class
+        // along with it - the champion visually "pops back" into its row
+        // mid-drag even though nothing was dropped. dragState.cellId
+        // survives that rebuild (it's just a number), so once the new DOM
+        // exists this finds wherever that row landed and re-lifts it - same
+        // for the currently hovered drop target, if any. Exact same fix as
+        // overlay.html's reapplyDragVisual(), just scoped to #theirRoleRows
+        // .slot instead of overlay's .portrait[data-cell-id], since here
+        // the cellId/role live on the row itself.
+        function reapplyDragVisual() {
+            if (!dragState) return;
+            const slotEl = document.querySelector(`#theirRoleRows .slot[data-cell-id="${dragState.cellId}"]`);
+            if (slotEl) slotEl.classList.add('drag-source');
+
+            if (dragState.currentTargetRole) {
+                const targetSlot = document.querySelector(`#theirRoleRows .slot[data-role="${dragState.currentTargetRole}"]`);
+                if (targetSlot) targetSlot.classList.add('drag-target');
+            }
+        }
+
         function renderBans(containerId, banNames) {
             const el = document.getElementById(containerId);
             const chips = banNames.map((name) => `<div class="ban-chip filled">${abbreviate(name)}</div>`);
@@ -1409,6 +1433,7 @@
             wirePortraitFallbacks();
             wireRoleIconFallbacks();
             wireEnemyDrag();
+            reapplyDragVisual();
             renderBans('myBans', session.bans.mine);
             renderBans('theirBans', session.bans.theirs);
             renderReport(session, resolvedOpponentCellId);

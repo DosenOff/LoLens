@@ -13,6 +13,17 @@
 const { app, BrowserWindow, Tray, Menu, screen, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+// ClearType (Windows' default subpixel text antialiasing) assumes it's
+// compositing onto an opaque background. On the transparent, frameless
+// windows toast.html/overlay.html use, that assumption breaks and the
+// result is the "vertically stretched"/blurry text look on Windows -
+// macOS never hits this since it doesn't use ClearType. Must be set
+// before the 'ready' event, so this runs at module load rather than
+// inside app.whenReady(). Falling back to grayscale AA instead is a
+// no-op visually on macOS and on Windows' opaque dashboard window.
+app.commandLine.appendSwitch('disable-lcd-text');
+
 const { startWatching } = require('./lib/watcher');
 const { championName, championIconUrl, listAllChampions } = require('./lib/championData');
 const { mapSession } = require('./lib/sessionMapper');
@@ -104,8 +115,20 @@ let overlayWindow = null;
 const CORNER_MARGIN = 16;
 const DASHBOARD_PAGES = ['home', 'settings', 'about'];
 
+// screen.getPrimaryDisplay() is whichever monitor Windows/macOS considers
+// "primary" in display settings - on a multi-monitor setup that's very
+// often NOT the monitor League is actually running on, which is why the
+// toast/overlay kept showing up on the wrong screen. There's no cheap,
+// dependency-free way to ask "which monitor is League's window on" from
+// Electron's main process, but the cursor position is a solid proxy: the
+// user was just clicking through champ select, so their cursor is almost
+// always still on that same monitor.
+function activeDisplay() {
+  return screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+}
+
 function topLeftPosition(width, height) {
-  const { workArea } = screen.getPrimaryDisplay();
+  const { workArea } = activeDisplay();
   return { x: workArea.x + CORNER_MARGIN, y: workArea.y + CORNER_MARGIN, width, height };
 }
 
@@ -192,7 +215,10 @@ function showOverlay() {
   suppressNextResizeEvent = false;
 
   const { x, y, width, height } = topLeftPosition(OVERLAY_WIDTH, OVERLAY_LIST_HEIGHT);
-  const { workAreaSize } = screen.getPrimaryDisplay();
+  // Use the same display just chosen for x/y - clamping against the
+  // primary display's height while the window itself sits on a different
+  // (e.g. taller/shorter) monitor would produce a wrong maxHeight.
+  const { workAreaSize } = activeDisplay();
 
   overlayWindow = new BrowserWindow({
     x, y, width, height,
@@ -204,7 +230,7 @@ function showOverlay() {
     maxHeight: workAreaSize.height - CORNER_MARGIN * 2,
     frame: false,
     transparent: true,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     skipTaskbar: true,
     resizable: true,
     // focusable:false means this window can never become the OS-focused
@@ -223,6 +249,28 @@ function showOverlay() {
     // side; overlay.html insets its visible gold frame by a few px so that
     // rounding doesn't visibly clip the corner brackets instead.
     roundedCorners: false,
+    // macOS-only: clicking a focusable:false window still tells macOS "make
+    // my app active," and since this window can't actually take focus, macOS
+    // hands focus to some OTHER window in the app instead - the dashboard,
+    // if one happens to exist, popping it to the front (a confirmed, still-
+    // open Electron/macOS bug: electron/electron#29644). type:'panel' makes
+    // this a real NSPanel, which Electron 28+ specifically excludes from
+    // that app-activation dance (electron/electron#40307) - the same
+    // technique CleanShot X, Raycast, and similar overlay/HUD apps use.
+    // Windows/Linux have no such concept and don't have this bug either.
+    ...(process.platform === 'darwin' ? { type: 'panel' } : {}),
+    // On Windows, a plain (default) show at construction forces this
+    // window to the very top of the OS z-order, the same way any normal
+    // window briefly claims top-of-stack on creation. A normal window
+    // then gets demoted the instant something else is focused/activated -
+    // but this one is focusable:false, so it never receives that
+    // activation/blur signal and just stays pinned on top of whatever you
+    // click afterward, even with alwaysOnTop off. show:false + an inert
+    // showInactive() (shows without claiming activation/top-of-stack)
+    // avoids ever entering that "forced to top" state in the first place,
+    // so normal window focus changes push it behind other windows as
+    // expected.
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'overlay-preload.js'),
       contextIsolation: true,
@@ -230,6 +278,20 @@ function showOverlay() {
     }
   });
   overlayWindow.loadFile('src/overlay.html');
+  overlayWindow.once('ready-to-show', () => {
+    if (overlayWindow) overlayWindow.showInactive();
+  });
+
+  // type: 'panel' above (macOS) uses NSPanel to dodge the focus-stealing
+  // bug in its own comment block - but NSPanel's own default window level
+  // sits above a normal document window's, independent of the
+  // alwaysOnTop:false constructor option, which only guards against an
+  // *explicit* always-on-top bump; it doesn't touch NSPanel's own default
+  // floating level. Force the level down explicitly so clicking another
+  // app/window actually covers the overlay, matching the Windows fix above.
+  if (process.platform === 'darwin') {
+    overlayWindow.setAlwaysOnTop(false, 'normal');
+  }
 
   overlayWindow.on('resize', () => {
     if (suppressNextResizeEvent) {
@@ -605,7 +667,10 @@ ipcMain.on('resize-overlay', (event, { height, forced } = {}) => {
   if (!forced && !overlayAutoFit) return;
   if (forced) overlayAutoFit = true;
 
-  const { workAreaSize } = screen.getPrimaryDisplay();
+  // Clamp against whichever display the overlay window is actually
+  // sitting on right now, not the OS's primary display - the cursor may
+  // have moved elsewhere since the window was placed.
+  const { workAreaSize } = screen.getDisplayMatching(overlayWindow.getBounds());
   const maxHeight = workAreaSize.height - CORNER_MARGIN * 2;
   const clamped = Math.max(40, Math.min(maxHeight, Math.round(height)));
   suppressNextResizeEvent = true;

@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600&family=Spectral:ital@1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600&family=Spectral:ital@1&display=swap"
+        rel="stylesheet">
     <style>
         html,
         body {
@@ -20,6 +21,12 @@
             background: transparent;
             overflow: hidden;
             -webkit-app-region: no-drag;
+            /* Paired with app.commandLine.appendSwitch('disable-lcd-text')
+               in main.js - ClearType subpixel AA assumes an opaque
+               background and renders wrong on this window's transparent
+               one (the "stretched" look on Windows). Grayscale AA doesn't
+               have that assumption. */
+            -webkit-font-smoothing: antialiased;
         }
 
         /* macOS applies a compositor-level rounded corner to frameless/
@@ -59,10 +66,23 @@
         }
 
         @keyframes toastFade {
-            0%   { opacity: 0; transform: translateY(-4px); }
-            8%   { opacity: 1; transform: translateY(0); }
-            88%  { opacity: 1; }
-            100% { opacity: 0; }
+            0% {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+
+            8% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            88% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+            }
         }
 
         .dot {

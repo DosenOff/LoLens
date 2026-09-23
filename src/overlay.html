@@ -33,6 +33,12 @@
             font-family: 'Teko', 'Segoe UI', sans-serif;
             color: var(--parchment);
             -webkit-app-region: no-drag;
+            /* Paired with app.commandLine.appendSwitch('disable-lcd-text')
+               in main.js - ClearType subpixel AA assumes an opaque
+               background and renders wrong on this window's transparent
+               one (the "stretched" look on Windows). Grayscale AA doesn't
+               have that assumption. */
+            -webkit-font-smoothing: antialiased;
         }
 
         /* macOS applies a compositor-level rounded corner to frameless/
