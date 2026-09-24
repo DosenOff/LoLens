@@ -117,6 +117,20 @@
             margin-top: 1px;
             white-space: nowrap;
         }
+
+        /* Windows: grayscale AA (paired with disable-lcd-text in main.js,
+           needed to fix ClearType stretching on this transparent window)
+           renders text lighter than macOS's rendering does. .subtext is
+           the only text here using the low-contrast #A09B8C tone, so it's
+           the only one that needs a bump - .headline is already gold and
+           weight 500. Toggled via body.is-windows below; this window has
+           no preload script, so navigator.platform (a standard, always-
+           available web API, unlike the preload-bridged process.platform
+           the other windows use) is read directly instead. */
+        body.is-windows .subtext {
+            font-weight: 500;
+            color: #B5AF9E;
+        }
     </style>
 </head>
 
@@ -130,6 +144,11 @@
             </div>
         </div>
     </div>
+    <script>
+        if (navigator.platform.startsWith('Win')) {
+            document.body.classList.add('is-windows');
+        }
+    </script>
 </body>
 
 </html>

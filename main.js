@@ -236,12 +236,13 @@ function showOverlay() {
     // focusable:false means this window can never become the OS-focused
     // window - clicking League (or anything else) just focuses it normally
     // without the overlay stealing or needing to "give up" focus. Buttons/
-    // rows inside the overlay still receive clicks fine; only keyboard
-    // focus and being brought to the front on click are affected. If
-    // edge-drag resizing feels unresponsive on your OS, flipping this to
-    // true is the fix - the tradeoff is the overlay can then steal focus
-    // from League on click.
-    focusable: false,
+    // rows inside the overlay still receive clicks fine on macOS this way.
+    // On Windows, focusable:false goes further and blocks clicks from
+    // registering on the overlay's own rows/buttons at all (a known
+    // Electron/Windows quirk with non-activating windows) - so there it's
+    // flipped to true, at the cost of the overlay being able to steal
+    // focus from League on click there.
+    focusable: process.platform === 'win32',
     hasShadow: false,
     // roundedCorners is a Windows-only option (no-op elsewhere) - harmless
     // to set everywhere. On macOS, frameless/transparent windows get a

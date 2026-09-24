@@ -24,5 +24,10 @@ contextBridge.exposeInMainWorld('draftAPI', {
     // Player dragged an enemy portrait into a role slot - swapping it with
     // whoever was already there, or moving it into an empty slot. cellId,
     // not champion name, so it survives that player swapping picks.
-    setEnemyRole: (cellId, role) => ipcRenderer.send('set-enemy-role', { cellId, role })
+    setEnemyRole: (cellId, role) => ipcRenderer.send('set-enemy-role', { cellId, role }),
+    // Lets dashboard pages compensate for Windows rendering differently
+    // than macOS under disable-lcd-text (see main.js) - grayscale AA and
+    // Windows' text rendering generally come out visibly thinner/lower-
+    // contrast than mac's for small/secondary text.
+    platform: process.platform
 });

@@ -13,5 +13,12 @@ contextBridge.exposeInMainWorld('overlayAPI', {
     // Player dragged an enemy portrait into a role slot - swapping it with
     // whoever was already there, or moving it into an empty slot. cellId,
     // not champion name, so it survives that player swapping picks.
-    setEnemyRole: (cellId, role) => ipcRenderer.send('set-enemy-role', { cellId, role })
+    setEnemyRole: (cellId, role) => ipcRenderer.send('set-enemy-role', { cellId, role }),
+    // Lets overlay.html compensate for two Windows-specific rendering
+    // differences vs macOS: grayscale AA (needed to fix ClearType
+    // stretching on this transparent window - see disable-lcd-text in
+    // main.js) renders visibly thinner than mac's font rendering, and
+    // Windows' DWM transparency compositing under-renders the same rgba
+    // alpha values mac shows at full strength.
+    platform: process.platform
 });

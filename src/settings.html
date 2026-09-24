@@ -496,6 +496,44 @@
             opacity: 0;
             transition: opacity 0.2s ease;
         }
+
+        /* ---- Windows-only text legibility fixes (toggled via body.is-windows,
+           see init() below) ----
+           Grayscale AA - paired with disable-lcd-text in main.js, needed
+           to fix ClearType stretching on the overlay/toast windows -
+           renders text lighter than macOS's rendering, everywhere in the
+           app, not just those transparent windows. Unlike overlay.html,
+           almost nothing on this page sets its own font-weight - every
+           rule above genuinely inherits the body's 300, so one bump here
+           reaches all of them correctly (checked: only .masthead h1 sets
+           its own weight, at 600, and is left alone). */
+        body.is-windows {
+            font-weight: 400;
+        }
+
+        /* Text colored with --parchment-faint (#5A5648) or --parchment-dim
+           (#A09B8C) reads as low-contrast against the navy background
+           even on macOS, and more so once Windows' rendering is applied.
+           Brightened per element rather than by redefining the shared
+           variables, since a couple of their other uses (borders, hover
+           states) aren't the "faint text" problem and shouldn't change. */
+        body.is-windows .field label,
+        body.is-windows .hint,
+        body.is-windows .field .hint,
+        body.is-windows .combo-trigger .chev,
+        body.is-windows .combo-empty,
+        body.is-windows .pool-chip .remove {
+            color: #7A7462;
+            /* brighter than --parchment-faint's #5A5648 */
+        }
+
+        body.is-windows .masthead .subtitle,
+        body.is-windows .panel-desc,
+        body.is-windows .role-tab:not(.active),
+        body.is-windows .threshold-row {
+            color: #B5AF9E;
+            /* brighter than --parchment-dim's #A09B8C */
+        }
     </style>
 </head>
 
@@ -589,8 +627,8 @@
             <div class="corner-bl"></div>
             <div class="panel-title">Confidence weighting</div>
             <p class="panel-desc">Small samples count for less. A 4-1 data record is useful, but
-                it shouldn't outweigh hundreds of games. Confidence reduces the impact of personal, 
-                counter, and synergy stats when sample sizes are small. The population baseline is already 
+                it shouldn't outweigh hundreds of games. Confidence reduces the impact of personal,
+                counter, and synergy stats when sample sizes are small. The population baseline is already
                 built from thousands of games, so it stays unchanged.</p>
             <label class="checkbox-row">
                 <input type="checkbox" id="weightingEnabledInput" checked>
@@ -928,6 +966,10 @@
         });
 
         async function init() {
+            if (window.draftAPI.platform === 'win32') {
+                document.body.classList.add('is-windows');
+            }
+
             const [settings, championList, patchOptions] = await Promise.all([
                 window.draftAPI.getSettings(),
                 window.draftAPI.getChampionList(),

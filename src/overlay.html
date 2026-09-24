@@ -835,6 +835,74 @@
             background: linear-gradient(160deg, var(--gold-bright), var(--gold));
             transform: rotate(45deg);
         }
+
+        /* ---- Windows-only text legibility fixes (toggled via body.is-windows,
+           see the platform check at the bottom of the script) ----
+           Grayscale AA - needed to fix ClearType stretching on this
+           transparent window, see disable-lcd-text in main.js - renders
+           text lighter than macOS's font rendering. Every block below
+           currently has no explicit font-weight (so it's rendering at the
+           browser default, 400) or is explicitly set to 300; each is
+           bumped one step, matched to that block's own size/role rather
+           than a blanket rule, so headings/labels that were already
+           500/600 are untouched. */
+        body.is-windows .header .timer,
+        body.is-windows .back-btn,
+        body.is-windows .role-chip .vs,
+        body.is-windows .context-empty,
+        body.is-windows .section-header .col-hint,
+        body.is-windows .row-main .sub-line,
+        body.is-windows .row-score .breakdown,
+        body.is-windows .detail-row .pos-tag,
+        body.is-windows .detail-row .n,
+        body.is-windows .stat-label,
+        body.is-windows .formula-note,
+        body.is-windows .section-title,
+        body.is-windows .footer-state .state-text,
+        body.is-windows .footer-tier,
+        body.is-windows .empty,
+        body.is-windows .portrait,
+        body.is-windows .role-reveal {
+            font-weight: 500;
+        }
+
+        /* .role-placeholder's "?" glyph is explicitly 300 (thinnest weight
+           in the loaded set) - on Windows that's barely legible, so it
+           gets bumped further than the 400->500 step above. */
+        body.is-windows .role-placeholder {
+            font-weight: 400;
+        }
+
+        /* Text colored with --parchment-faint (#5A5648) or --parchment-dim
+           (#A09B8C) is the actual "words reading really low" case: both
+           are low-contrast against the navy background even on macOS, and
+           Windows' DWM compositing renders that contrast lower still.
+           Brightened per element below rather than by redefining the
+           shared variables, since --parchment-faint/--parchment-dim are
+           also used for a few non-text/decorative things (drag-state
+           backdrops, dot markers) that don't have this problem and
+           shouldn't change. */
+        body.is-windows .role-chip .vs,
+        body.is-windows .context-empty,
+        body.is-windows .section-header .col-hint,
+        body.is-windows .row-main .sub-line .games,
+        body.is-windows .row-score .breakdown .dim,
+        body.is-windows .formula-note,
+        body.is-windows .stat-label,
+        body.is-windows .detail-row .pos-tag,
+        body.is-windows .detail-row .n,
+        body.is-windows .collapse-tab {
+            color: #7A7462;
+            /* brighter than --parchment-faint's #5A5648 */
+        }
+
+        body.is-windows .row-main .sub-line .wr,
+        body.is-windows .row-score .total.dim,
+        body.is-windows .stat-value.dim,
+        body.is-windows .footer-state .state-text {
+            color: #B5AF9E;
+            /* brighter than --parchment-dim's #A09B8C */
+        }
     </style>
 </head>
 
@@ -1444,6 +1512,11 @@
             document.getElementById('content').innerHTML =
                 '<div class="empty">overlayAPI not available — check overlay-preload.js path/placement</div>';
         } else {
+            // Drives the body.is-windows CSS overrides above - see
+            // overlay-preload.js for why Windows needs the boost.
+            if (window.overlayAPI.platform === 'win32') {
+                document.body.classList.add('is-windows');
+            }
             window.overlayAPI.onUpdate(render);
         }
     </script>

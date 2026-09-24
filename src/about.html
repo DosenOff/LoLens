@@ -483,6 +483,46 @@
                 flex-direction: column;
             }
         }
+
+
+        /* ---- Windows-only text legibility fixes (toggled via body.is-windows,
+           see the script below) ----
+           Grayscale AA - paired with disable-lcd-text in main.js, needed
+           to fix ClearType stretching on the overlay/toast windows -
+           renders text lighter than macOS's rendering does everywhere.
+           Almost nothing on this page sets its own font-weight - every
+           rule above genuinely inherits the body's 300, so one bump here
+           reaches all of them correctly (checked: only the handful of
+           explicit 600s above - headings/emphasis/stat numbers - set
+           their own weight, and are left alone). */
+        body.is-windows {
+            font-weight: 400;
+        }
+
+        /* Text colored with --parchment-faint (#5A5648) or --parchment-dim
+           (#A09B8C) reads as low-contrast against the navy background
+           even on macOS, more so under Windows' rendering. Brightened per
+           element rather than by redefining the shared variables - .nav-btn
+           also uses --parchment-dim but for a single icon glyph rather
+           than words, and has its own hover/active color rules that a
+           blanket override would incorrectly outrank, so it's left out. */
+        body.is-windows .masthead .subtitle,
+        body.is-windows .panel p,
+        body.is-windows .hero .lede,
+        body.is-windows .step-body p,
+        body.is-windows .compare-desc,
+        body.is-windows .formula-note {
+            color: #B5AF9E;
+            /* brighter than --parchment-dim's #A09B8C */
+        }
+
+        body.is-windows .shot-caption,
+        body.is-windows .formula-champ-meta,
+        body.is-windows .formula-term .lbl,
+        body.is-windows .legal-panel p {
+            color: #7A7462;
+            /* brighter than --parchment-faint's #5A5648 */
+        }
     </style>
 </head>
 
@@ -545,7 +585,7 @@
                     <div class="step-body">
                         <h3>Launch League<span class="step-tag">no setup</span></h3>
                         <p>LoLens notices the moment League opens and quietly lets you know it's watching.
-                        Yep, that's it. :)</p>
+                            Yep, that's it. :)</p>
                     </div>
                 </div>
                 <div class="step">
@@ -627,7 +667,7 @@
                     <div class="lbl">Rating</div>
                 </div>
             </div>
-            <p class="formula-note">Every term is <strong>additive and inspectable</strong>. A 
+            <p class="formula-note">Every term is <strong>additive and inspectable</strong>. A
                 term only counts when there's real data behind it; a champion you've never
                 personally played simply skips that term rather than guessing on your behalf.</p>
         </div>
@@ -646,6 +686,10 @@
     </div>
 
     <script>
+        if (window.draftAPI.platform === 'win32') {
+            document.body.classList.add('is-windows');
+        }
+
         document.querySelectorAll('.nav-btn').forEach((btn) => {
             btn.addEventListener('click', () => window.draftAPI.navigate(btn.dataset.page));
         });

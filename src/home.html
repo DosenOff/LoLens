@@ -809,6 +809,57 @@
             color: var(--parchment-faint);
             text-align: center;
         }
+
+        /* ---- Windows-only text legibility fixes (toggled via body.is-windows,
+           see IS_WINDOWS in the script below) ----
+           Grayscale AA - paired with disable-lcd-text in main.js, needed
+           to fix ClearType stretching on the overlay/toast windows -
+           renders text lighter than macOS's rendering does everywhere.
+           Almost nothing on this page sets its own font-weight - every
+           rule above genuinely inherits the body's 300, so one bump here
+           reaches all of them correctly (checked: only .masthead h1 at
+           600 and .info-value at 500 set their own weight, and are left
+           alone). The renderReport/renderRecommendations JS below also
+           writes a few inline styles referencing --parchment-faint
+           directly - those are fixed at the source in the script instead,
+           since an external CSS rule can never win against an inline
+           style. */
+        body.is-windows {
+            font-weight: 400;
+        }
+
+        /* Text colored with --parchment-faint (#5A5648) or --parchment-dim
+           (#A09B8C) reads as low-contrast against the navy background
+           even on macOS, more so under Windows' rendering. Brightened per
+           element rather than by redefining the shared variables - .nav-btn
+           and .status .dot/.context-meta .meta-dot use the same variables
+           for an icon glyph and decorative dots rather than words, so
+           they're left out. .slot .name needs its unfilled state singled
+           out, since .filled/.your-pick-pending already set their own
+           (different, correct) colors that shouldn't be touched. */
+        body.is-windows .masthead .subtitle,
+        body.is-windows .status:not(.live),
+        body.is-windows .context-meta,
+        body.is-windows .matchup-card .stat-line,
+        body.is-windows .baseline-stat-value.dim,
+        body.is-windows .slot:not(.filled):not(.your-pick-pending) .name {
+            color: #B5AF9E;
+            /* brighter than --parchment-dim's #A09B8C */
+        }
+
+        body.is-windows .info-label,
+        body.is-windows .side-bans-label,
+        body.is-windows .report-header .meta,
+        body.is-windows .matchup-card .games,
+        body.is-windows .report-empty,
+        body.is-windows .baseline-sample-note,
+        body.is-windows .baseline-stat-label,
+        body.is-windows .synergy-row .no-data,
+        body.is-windows .rec-tier-note,
+        body.is-windows footer {
+            color: #7A7462;
+            /* brighter than --parchment-faint's #5A5648 */
+        }
     </style>
 </head>
 
@@ -947,6 +998,14 @@
         const FULL_POSITION_LABELS = { top: 'Top', jungle: 'Jungle', middle: 'Mid', bottom: 'Bottom', utility: 'Support' };
         const TIER_LABELS = { EMERALD: 'Emerald', 'EMERALD+': 'Emerald+', DIAMOND: 'Diamond', 'DIAMOND+': 'Diamond+', MASTER_PLUS: 'Master+' };
         const POOL_LABELS = { top: 'top pool', jungle: 'jungle pool', middle: 'mid pool', bottom: 'bottom pool', utility: 'support pool', all: 'all pools · no lane yet' };
+
+        // Drives the body.is-windows CSS rules further up, and the two
+        // inline styles below (renderReport/renderRecommendations) that
+        // reference --parchment-faint directly - an external CSS rule can
+        // never win against an inline style, so those two spots are fixed
+        // by swapping in this literal color at render time instead.
+        const IS_WINDOWS = window.draftAPI.platform === 'win32';
+        const FAINT_TEXT_COLOR = IS_WINDOWS ? '#7A7462' : 'var(--parchment-faint)';
 
         function abbreviate(name) {
             return name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
@@ -1270,8 +1329,8 @@
 
             body.innerHTML = `<div class="matchup-grid">${stats.map((s) => {
                 const popLine = s.populationMatchup
-                    ? `<div class="stat-line"><span style="color:var(--parchment-faint);">Population</span><span style="color:var(--parchment-faint);">${s.populationMatchup.winRate}% (${s.populationMatchup.games}g)</span></div>`
-                    : `<div class="stat-line"><span style="color:var(--parchment-faint);">Population</span><span style="color:var(--parchment-faint); font-style:italic;">no data yet</span></div>`;
+                    ? `<div class="stat-line"><span style="color:${FAINT_TEXT_COLOR};">Population</span><span style="color:${FAINT_TEXT_COLOR};">${s.populationMatchup.winRate}% (${s.populationMatchup.games}g)</span></div>`
+                    : `<div class="stat-line"><span style="color:${FAINT_TEXT_COLOR};">Population</span><span style="color:${FAINT_TEXT_COLOR}; font-style:italic;">no data yet</span></div>`;
                 return `
       <div class="matchup-card">
         <div class="champ">${s.champion}</div>
@@ -1373,9 +1432,9 @@
                 return `
         <div style="display:flex; justify-content:space-between; align-items:baseline; padding:5px 0; border-bottom:1px solid rgba(200,155,60,0.15);">
           <div>
-            <span style="color:var(--parchment-faint); font-family:'JetBrains Mono',monospace; font-size:10px; margin-right:6px;">#${i + 1}</span>
+            <span style="color:${FAINT_TEXT_COLOR}; font-family:'JetBrains Mono',monospace; font-size:10px; margin-right:6px;">#${i + 1}</span>
             <span style="color:var(--parchment); font-family:'Oswald',sans-serif; font-size:12px;">${r.champion}</span>
-            <div style="font-size:9px; color:var(--parchment-faint); margin-left:20px;">${parts.join(' · ')}</div>
+            <div style="font-size:9px; color:${FAINT_TEXT_COLOR}; margin-left:20px;">${parts.join(' · ')}</div>
           </div>
           <span style="font-family:'JetBrains Mono',monospace; font-size:14px; color:${r.score >= 50 ? '#7FD99B' : '#E08A8A'};">${r.score}%</span>
         </div>`;
@@ -1517,6 +1576,7 @@
         // and the population badge read straight from disk via
         // getSettings(), rather than leaving everything blank/"—" until
         // the first session-update arrives.
+        if (IS_WINDOWS) document.body.classList.add('is-windows');
         renderIdleRoleColumns();
         window.draftAPI.getSettings().then(renderPopulationBadge).catch(() => {
             // Badge just stays at its default "—" if settings aren't ready yet.
