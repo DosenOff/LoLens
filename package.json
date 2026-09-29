@@ -1,5 +1,5 @@
 {
-  "name": "draft-intel",
+  "name": "lolens",
   "version": "0.1.0",
   "description": "Real-time League draft intelligence app",
   "main": "main.js",
@@ -36,7 +36,8 @@
     ],
     "mac": {
       "category": "public.app-category.utilities",
-      "icon": "assets/icon/icon-mark.png"
+      "icon": "assets/icon/icon-mark.png",
+      "identity": "-"
     },
     "win": {
       "target": "nsis",
