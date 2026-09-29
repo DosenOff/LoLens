@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to LoLens</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --navy-deep: #0A0E14;
+            --navy: #0A1428;
+            --navy-panel: #0F1B33;
+            --gold: #C89B3C;
+            --gold-bright: #F0C75E;
+            --gold-dim: #5C4A22;
+            --parchment: #F0E6D2;
+            --parchment-dim: #A09B8C;
+            --parchment-faint: #5A5648;
+            --red: #E08A8A;
+            --green: #7FD99B;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: radial-gradient(ellipse at top, #0F1D38 0%, var(--navy-deep) 70%);
+            color: var(--parchment);
+            font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+            font-weight: 300;
+            min-height: 100vh;
+            padding: 32px 18px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        body.is-windows {
+            font-weight: 400;
+        }
+
+        .frame {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            padding: 32px 30px 26px;
+            border: 1px solid var(--gold-dim);
+            background: linear-gradient(160deg, var(--navy-panel) 0%, var(--navy) 100%);
+        }
+
+        .frame::before,
+        .frame::after,
+        .frame .corner-tr,
+        .frame .corner-bl {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border: 1.5px solid var(--gold);
+            pointer-events: none;
+        }
+
+        .frame::before {
+            top: -1px;
+            left: -1px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .frame::after {
+            bottom: -1px;
+            right: -1px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .frame .corner-tr {
+            top: -1px;
+            right: -1px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .frame .corner-bl {
+            bottom: -1px;
+            left: -1px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .logo {
+            width: 56px;
+            height: 56px;
+            display: block;
+            margin-bottom: 14px;
+        }
+
+        .eyebrow {
+            font-family: 'Barlow Semi Condensed', sans-serif;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-family: 'Oswald', sans-serif;
+            font-weight: 600;
+            font-size: 26px;
+            letter-spacing: 0.5px;
+            color: var(--parchment);
+            margin-bottom: 10px;
+        }
+
+        .lede {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--parchment-dim);
+            margin-bottom: 22px;
+        }
+
+        body.is-windows .lede {
+            color: #B5AF9E;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .field {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .field.region {
+            flex: 0 0 110px;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            color: var(--parchment-faint);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        body.is-windows label {
+            color: #7A7462;
+        }
+
+        input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--gold-dim);
+            color: var(--parchment);
+            padding: 10px 10px;
+            font-family: 'Barlow Semi Condensed', sans-serif;
+            font-size: 14px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--gold);
+        }
+
+        input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ---- custom dropdown ("combo") ----
+           Same component as the Patch/Tier dropdowns on the Settings page,
+           sized here to match this page's 14px input so the two boxes in
+           the row line up. */
+        .combo {
+            position: relative;
+        }
+
+        .combo-trigger {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--gold-dim);
+            color: var(--parchment);
+            padding: 10px 10px;
+            font-family: 'Barlow Semi Condensed', sans-serif;
+            font-size: 14px;
+            line-height: normal;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .combo-trigger:hover,
+        .combo-trigger.open {
+            border-color: var(--gold);
+        }
+
+        .combo-trigger:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .combo-trigger .chev {
+            color: var(--parchment-faint);
+            font-size: 10px;
+            margin-left: 8px;
+            flex-shrink: 0;
+        }
+
+        body.is-windows .combo-trigger .chev {
+            color: #7A7462;
+        }
+
+        /* The panel is toggled with the native `hidden` attribute from JS. This
+           rule has to win over the class-based display:flex below it, or the
+           panel renders permanently open regardless of `hidden`. */
+        .combo-panel[hidden] {
+            display: none;
+        }
+
+        .combo-panel {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            z-index: 30;
+            background: var(--navy-panel);
+            border: 1px solid var(--gold);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+            max-height: 188px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .combo-list {
+            overflow-y: auto;
+        }
+
+        .combo-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--parchment);
+        }
+
+        .combo-row:hover {
+            background: rgba(200, 155, 60, 0.15);
+        }
+
+        .combo-row.selected {
+            background: rgba(200, 155, 60, 0.1);
+            color: var(--gold-bright);
+        }
+
+        .combo-row .row-name {
+            flex: 1;
+        }
+
+        .hint {
+            font-size: 10.5px;
+            font-style: italic;
+            color: var(--parchment-faint);
+            margin-bottom: 18px;
+        }
+
+        body.is-windows .hint {
+            color: #7A7462;
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        button.primary {
+            font-family: 'Barlow Semi Condensed', sans-serif;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            padding: 11px 24px;
+            border: 1px solid var(--gold);
+            background: linear-gradient(160deg, var(--gold-bright), var(--gold));
+            color: var(--navy-deep);
+            cursor: pointer;
+        }
+
+        button.primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button.link {
+            background: none;
+            border: none;
+            color: var(--parchment-dim);
+            font-family: 'Barlow Semi Condensed', sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        button.link:hover {
+            color: var(--gold-bright);
+        }
+
+        button.link:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 18px;
+            min-height: 18px;
+            font-size: 12px;
+            color: var(--parchment-dim);
+        }
+
+        .status.error {
+            color: var(--red);
+        }
+
+        .status.ok {
+            color: var(--green);
+        }
+
+        .privacy {
+            margin-top: 22px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(200, 155, 60, 0.15);
+            font-size: 10.5px;
+            line-height: 1.55;
+            color: var(--parchment-faint);
+        }
+
+        body.is-windows .privacy {
+            color: #7A7462;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="frame">
+        <div class="corner-tr"></div>
+        <div class="corner-bl"></div>
+
+        <img class="logo" src="../assets/icon/icon-256.png" alt="LoLens">
+        <div class="eyebrow">First-time setup</div>
+        <h1>Welcome to LoLens!</h1>
+        <p class="lede">Please enter your Riot ID to get started.</p>
+
+        <div class="row">
+            <div class="field">
+                <label for="riotIdInput">Riot ID</label>
+                <input id="riotIdInput" type="text" placeholder="Name#Tag" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="field region">
+                <label for="regionTrigger">Region</label>
+                <div class="combo" id="regionCombo">
+                    <button type="button" class="combo-trigger" id="regionTrigger">
+                        <span id="regionLabel">NA</span>
+                        <span class="chev">&#9662;</span>
+                    </button>
+                    <div class="combo-panel" id="regionPanel" hidden>
+                        <div class="combo-list" id="regionList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="hint">You'll find it in the League client, next to your name (e.g. Faker#KR1).</div>
+
+        <div class="actions">
+            <button class="primary" id="connectBtn">Connect</button>
+            <button class="link" id="skipBtn">Skip for now</button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="privacy">Your Riot ID and region are sent to the LoLens server only to fetch your public match
+            data. Your games are then stored on this computer.</div>
+    </div>
+
+    <script>
+        if (window.draftAPI.platform === 'win32') document.body.classList.add('is-windows');
+
+        const riotIdInput = document.getElementById('riotIdInput');
+        const connectBtn = document.getElementById('connectBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        const statusEl = document.getElementById('status');
+
+        // ---- region dropdown (same combo plumbing as settings.html) ----
+        const REGIONS = [
+            { value: 'na1', label: 'NA' }, { value: 'euw1', label: 'EUW' }, { value: 'eun1', label: 'EUNE' },
+            { value: 'kr', label: 'KR' }, { value: 'jp1', label: 'JP' }, { value: 'br1', label: 'BR' },
+            { value: 'la1', label: 'LAN' }, { value: 'la2', label: 'LAS' }, { value: 'oc1', label: 'OCE' },
+            { value: 'tr1', label: 'TR' }, { value: 'ru', label: 'RU' }
+        ];
+        let selectedRegion = 'na1';
+
+        const regionTrigger = document.getElementById('regionTrigger');
+        const regionLabel = document.getElementById('regionLabel');
+        const regionPanel = document.getElementById('regionPanel');
+        const regionList = document.getElementById('regionList');
+
+        function closeCombo(combo) {
+            const panel = combo.querySelector('.combo-panel');
+            const trigger = combo.querySelector('.combo-trigger');
+            if (panel) panel.hidden = true;
+            if (trigger) {
+                trigger.classList.remove('open');
+                if (trigger === document.activeElement) trigger.blur();
+            }
+        }
+
+        function setupComboButton(triggerBtn, panelEl, { onOpen } = {}) {
+            const combo = triggerBtn.closest('.combo');
+            function open() {
+                panelEl.hidden = false;
+                triggerBtn.classList.add('open');
+                if (onOpen) onOpen();
+            }
+            function close() { closeCombo(combo); }
+            triggerBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (panelEl.hidden) open(); else close();
+            });
+            return { open, close };
+        }
+
+        function rowHtml(value, label, selected) {
+            return `<div class="combo-row${selected ? ' selected' : ''}" data-value="${value}">
+      <span class="row-name">${label}</span>
+    </div>`;
+        }
+
+        function renderRegionList() {
+            regionList.innerHTML = REGIONS.map((r) => rowHtml(r.value, r.label, r.value === selectedRegion)).join('');
+            regionList.querySelectorAll('.combo-row').forEach((row) => {
+                row.addEventListener('click', () => {
+                    const opt = REGIONS.find((r) => r.value === row.dataset.value);
+                    selectedRegion = opt.value;
+                    regionLabel.textContent = opt.label;
+                    regionComboCtl.close();
+                });
+            });
+        }
+        const regionComboCtl = setupComboButton(regionTrigger, regionPanel, { onOpen: renderRegionList });
+
+        document.addEventListener('click', (e) => {
+            document.querySelectorAll('.combo').forEach((combo) => {
+                if (!combo.contains(e.target)) closeCombo(combo);
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            document.querySelectorAll('.combo').forEach((combo) => closeCombo(combo));
+        });
+
+        function setStatus(text, kind) {
+            statusEl.textContent = text;
+            statusEl.className = 'status' + (kind ? ' ' + kind : '');
+        }
+
+        function setBusy(busy) {
+            [riotIdInput, regionTrigger, connectBtn, skipBtn].forEach((el) => { el.disabled = busy; });
+        }
+
+        // Only the "please wait" case matters here: once the ID checks out we
+        // leave this screen and the rest of the sync continues in the background.
+        window.draftAPI.onSyncProgress((p) => {
+            if (p.phase === 'waiting') {
+                setStatus(`The server asked us to slow down. Resuming in ${p.seconds}s...`);
+            }
+        });
+
+        async function connect() {
+            const raw = riotIdInput.value.trim();
+            const hashAt = raw.lastIndexOf('#');
+            if (hashAt < 1 || hashAt === raw.length - 1) {
+                setStatus('Enter your Riot ID as Name#Tag.', 'error');
+                return;
+            }
+            const gameName = raw.slice(0, hashAt).trim();
+            const tagLine = raw.slice(hashAt + 1).trim();
+
+            setBusy(true);
+            setStatus('Looking up your account...');
+
+            const result = await window.draftAPI.syncMatches({ gameName, tagLine, region: selectedRegion });
+
+            if (!result.ok) {
+                setBusy(false);
+                setStatus(result.error, 'error');
+                return;
+            }
+
+            // The ID is verified and saved. If there are more games to pull, they
+            // keep downloading in the background - no need to wait for them.
+            if (result.syncing) {
+                setStatus('Connected. Syncing your games in the background...', 'ok');
+            } else if (result.total === 0) {
+                setStatus('Connected, but no ranked solo games were found yet. LoLens will still work with population stats.', 'ok');
+            } else {
+                setStatus(`Done. ${result.total} games synced.`, 'ok');
+            }
+            setTimeout(() => window.draftAPI.navigate('home'), 1000);
+        }
+
+        connectBtn.addEventListener('click', connect);
+        riotIdInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+        skipBtn.addEventListener('click', () => window.draftAPI.navigate('home'));
+    </script>
+</body>
+
+</html>

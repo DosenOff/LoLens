@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "electron": "^32.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.shawnlee.lolens",
@@ -29,6 +29,7 @@
       "assets/**/*",
       "package.json",
       "!data/**/*",
+      "data/population-stats.json",
       "!.env",
       "!.env.example",
       "!scripts/**/*"
@@ -41,5 +42,8 @@
       "target": "nsis",
       "icon": "assets/icon/icon.ico"
     }
+  },
+  "allowScripts": {
+    "electron@32.3.3": true
   }
 }

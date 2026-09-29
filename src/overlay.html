@@ -228,6 +228,16 @@
             transform: rotate(45deg);
         }
 
+        /* The real LoLens icon. .brand-mark (the diamond above) is only shown
+           if this image fails to load - see wireBrandIconFallback(). */
+        .brand-icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            object-fit: contain;
+            display: block;
+        }
+
         .brand-name {
             font-family: 'Teko', 'Segoe UI', sans-serif;
             font-size: 15px;
@@ -253,6 +263,13 @@
             align-items: center;
             gap: 6px;
             flex-shrink: 0;
+        }
+
+        .role-chip .role-icon {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            object-fit: contain;
         }
 
         .role-chip .role-text {
@@ -1030,6 +1047,27 @@
             }, { once: true });
         }
 
+        // Swaps a broken LoLens header icon for the small gold diamond it
+        // replaced, instead of a broken-image icon. Same graceful-degradation
+        // pattern as wireTierIconFallback() above.
+        function wireBrandIconFallback() {
+            const img = document.querySelector('.brand-icon');
+            if (!img) return;
+            img.addEventListener('error', () => {
+                const fallback = document.createElement('span');
+                fallback.className = 'brand-mark';
+                img.replaceWith(fallback);
+            }, { once: true });
+        }
+
+        // The role chip's icon is a nice-to-have: if the asset is missing,
+        // just drop it and leave the text label.
+        function wireRoleChipIconFallback() {
+            const img = document.querySelector('.role-chip .role-icon');
+            if (!img) return;
+            img.addEventListener('error', () => img.remove(), { once: true });
+        }
+
         function formatTime(totalSeconds) {
             const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
             const s = String(totalSeconds % 60).padStart(2, '0');
@@ -1104,14 +1142,18 @@
 
         function renderBrand() {
             document.getElementById('headerTitle').innerHTML =
-                '<span class="brand"><span class="brand-mark"></span><span class="brand-name">LoLens</span></span>';
+                '<span class="brand"><img class="brand-icon" src="../assets/icon/icon-256.png" alt="">' +
+                '<span class="brand-name">LoLens</span></span>';
         }
 
         function renderContextBar(session) {
             const myPick = (session.myTeam || []).find((p) => p.cellId === session.localPlayerCellId);
             const posKey = myPick && myPick.position ? myPick.position.toLowerCase() : null;
             const roleText = posKey ? (SHORT_POSITION_LABELS[posKey] || posKey.toUpperCase()) : '—';
-            const roleChip = `<div class="role-chip"><span class="role-text">${roleText}</span><span class="vs">vs</span></div>`;
+            const roleIcon = posKey
+                ? `<img class="role-icon" src="${roleIconUrl(posKey)}" alt="">`
+                : '';
+            const roleChip = `<div class="role-chip">${roleIcon}<span class="role-text">${roleText}</span><span class="vs">vs</span></div>`;
 
             // Fixed TOP/JG/MID/BOT/SUP order, left to right - stable slot
             // positions so a drag means something concrete (drop target =
@@ -1395,6 +1437,8 @@
 
             wirePortraitFallbacks();
             wireTierIconFallback();
+            wireBrandIconFallback();
+            wireRoleChipIconFallback();
             wireRoleRevealFallbacks();
             wireEnemyDrag();
             reapplyDragVisual();

@@ -37,6 +37,7 @@ const {
 const { getPoolRecommendations } = require('./lib/recommendations');
 const { loadUserConfig, saveUserConfig } = require('./lib/userConfig');
 const { rankEmblemUrl } = require('./lib/rankEmblem');
+const { syncMatches, loadMatches } = require('./lib/matchSync');
 
 // User-editable settings: champion pool, which population tier to compare
 // against, which patch/date window of population data to use, and the
@@ -51,16 +52,53 @@ console.log(
   `patchFilter=${JSON.stringify(userConfig.patchFilter)}, confidenceWeighting=${JSON.stringify(userConfig.confidenceWeighting)}`
 );
 
-// Load your personal match history once at startup. If it doesn't exist yet
-// (you haven't run fetch-match-ids/fetch-match-details), the app still works,
-// it'll just show "no history" for every matchup until that data exists.
-let myMatches = [];
-try {
-  const matchesPath = path.join(__dirname, 'data', 'matches.json');
-  myMatches = JSON.parse(fs.readFileSync(matchesPath, 'utf-8'));
-  console.log(`Loaded ${myMatches.length} matches for personal matchup stats.`);
-} catch {
-  console.log('No data/matches.json found yet — matchup stats will be empty until you run the fetch scripts.');
+let myMatches = loadMatches();
+console.log(`Loaded ${myMatches.length} matches for personal matchup stats.`);
+console.log('User data folder:', app.getPath('userData'));
+
+let syncInFlight = null;
+
+// Sync progress goes to the dashboard window (whichever page it's showing),
+// not to whoever started the sync - the welcome screen navigates away
+// while the sync is still running.
+function sendSyncProgress(p) {
+  if (dashboardWindow && !dashboardWindow.isDestroyed()) {
+    dashboardWindow.webContents.send('sync-progress', p);
+  }
+}
+
+// Runs a sync in the background. opts.replace / opts.onVerified are passed
+// through to syncMatches (see lib/matchSync.js). Stats reload after every
+// page, so personal numbers fill in as games arrive.
+function runSync(riotId, opts = {}) {
+  if (syncInFlight) return syncInFlight;
+  syncInFlight = (async () => {
+    let verified = false;
+    try {
+      const result = await syncMatches(riotId, (p) => {
+        if (p.phase === 'fetching') myMatches = loadMatches();
+        sendSyncProgress(p);
+      }, {
+        ...opts,
+        onVerified: (info) => {
+          verified = true;
+          if (opts.onVerified) opts.onVerified(info);
+        }
+      });
+      myMatches = loadMatches();
+      sendSyncProgress({ phase: 'done', total: result.total });
+      return result;
+    } catch (err) {
+      // Before verification the caller reports the failure itself (the
+      // 'sync-matches' handler returns it); after it, nobody is waiting on
+      // this promise, so tell the UI here.
+      if (verified) sendSyncProgress({ phase: 'error', message: err.userMessage || 'Sync stopped. It will retry next launch.' });
+      throw err;
+    } finally {
+      syncInFlight = null;
+    }
+  })();
+  return syncInFlight;
 }
 
 // Load rank-specific population baseline data. Same graceful fallback if
@@ -159,7 +197,7 @@ function createDashboardWindow() {
       nodeIntegration: false
     }
   });
-  dashboardWindow.loadFile('src/home.html');
+  dashboardWindow.loadFile(userConfig.riotId ? 'src/home.html' : 'src/welcome.html');
   dashboardWindow.on('closed', () => { dashboardWindow = null; });
 }
 
@@ -369,6 +407,12 @@ app.whenReady().then(() => {
   }
 
   createTray();
+
+  if (!userConfig.riotId) {
+    createDashboardWindow(); // first run: show the setup screen
+  } else {
+    runSync(userConfig.riotId).catch((err) => console.log('Background sync failed:', err.message));
+  }
 
   startWatching({
     onReady: () => {
@@ -651,6 +695,47 @@ ipcMain.on('update-settings', (event, updates) => {
 
 // Renderer asks for current settings when the settings page first opens.
 ipcMain.handle('get-settings', () => userConfig);
+
+const VALID_REGIONS = ['na1', 'euw1', 'eun1', 'kr', 'jp1', 'br1', 'la1', 'la2', 'oc1', 'tr1', 'ru'];
+ipcMain.handle('sync-matches', async (event, riotId) => {
+  const { gameName, tagLine, region } = riotId || {};
+  if (typeof gameName !== 'string' || typeof tagLine !== 'string' ||
+    !VALID_REGIONS.includes(region) ||
+    !gameName.trim() || !tagLine.trim() ||
+    gameName.length > 24 || tagLine.length > 8) {
+    return { ok: false, error: 'Enter a valid Riot ID and region.' };
+  }
+  const clean = { gameName: gameName.trim(), tagLine: tagLine.trim(), region };
+  const saved = userConfig.riotId;
+  const sameId = saved &&
+    saved.gameName.toLowerCase() === clean.gameName.toLowerCase() &&
+    saved.tagLine.toLowerCase() === clean.tagLine.toLowerCase() &&
+    saved.region === clean.region;
+
+  // A sync (e.g. the launch-time one) is already running.
+  if (syncInFlight) {
+    if (sameId) return { ok: true, syncing: true };
+    return { ok: false, error: 'A sync is still running. Try again in a moment.' };
+  }
+
+  // Resolves as soon as the first page proves the ID is real (or fails);
+  // the remaining pages keep downloading after this returns.
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => { if (!settled) { settled = true; resolve(value); } };
+    runSync(clean, {
+      replace: !sameId,
+      onVerified: (info) => {
+        userConfig = { ...userConfig, riotId: clean }; // only saved once the ID proved valid
+        saveUserConfig(userConfig);
+        finish({ ok: true, syncing: info.hasMore, total: info.total });
+      }
+    }).then(
+      (result) => finish({ ok: true, syncing: false, total: result.total }),
+      (err) => finish({ ok: false, error: err.userMessage || 'Could not sync your matches. Try again in a moment.' })
+    );
+  });
+});
 
 // Overlay -> main: grow/shrink the overlay window to fit its content
 // (switching list <-> detail, or the collapse toggle). Clamps against the

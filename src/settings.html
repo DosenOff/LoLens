@@ -642,6 +642,28 @@
             <div class="hint" id="weightingExample"></div>
         </div>
 
+        <div class="frame panel">
+            <div class="corner-tr"></div>
+            <div class="corner-bl"></div>
+            <div class="panel-title">Riot account</div>
+            <p class="panel-desc">The Riot ID LoLens pulls your match history from.</p>
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <input type="text" class="combo-search-input" id="riotIdInput" placeholder="Name#Tag" autocomplete="off"
+                    spellcheck="false" style="flex:1;">
+                <div class="combo" id="riotRegionCombo" style="width:110px; flex-shrink:0;">
+                    <button type="button" class="combo-trigger" id="riotRegionTrigger">
+                        <span id="riotRegionLabel">NA</span>
+                        <span class="chev">&#9662;</span>
+                    </button>
+                    <div class="combo-panel" id="riotRegionPanel" hidden>
+                        <div class="combo-list" id="riotRegionList"></div>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="role-tab active" id="riotSyncBtn">Save &amp; sync</button>
+            <div class="hint" id="riotStatus" style="font-style:normal;"></div>
+        </div>
+
         <div class="save-row">
             <span class="saved-note" id="settingsSavedNote">Saved</span>
         </div>
@@ -1004,6 +1026,11 @@
             weightingThresholdInput.value = confidenceWeighting.threshold;
             updateWeightingExample();
 
+            if (settings.riotId) {
+                riotIdInputEl.value = `${settings.riotId.gameName}#${settings.riotId.tagLine}`;
+                setRiotRegion(settings.riotId.region);
+            }
+
             renderPoolChips();
         }
 
@@ -1024,6 +1051,83 @@
             clearTimeout(savedNoteTimer);
             savedNoteTimer = setTimeout(() => { note.style.opacity = '0'; }, 1200);
         }
+
+        // ---- Riot account ----
+        const riotIdInputEl = document.getElementById('riotIdInput');
+        const riotSyncBtn = document.getElementById('riotSyncBtn');
+        const riotStatusEl = document.getElementById('riotStatus');
+
+        // Region dropdown: same custom combo as Patch/Tier, not a native <select>.
+        const RIOT_REGIONS = [
+            { value: 'na1', label: 'NA' }, { value: 'euw1', label: 'EUW' }, { value: 'eun1', label: 'EUNE' },
+            { value: 'kr', label: 'KR' }, { value: 'jp1', label: 'JP' }, { value: 'br1', label: 'BR' },
+            { value: 'la1', label: 'LAN' }, { value: 'la2', label: 'LAS' }, { value: 'oc1', label: 'OCE' },
+            { value: 'tr1', label: 'TR' }, { value: 'ru', label: 'RU' }
+        ];
+        let selectedRiotRegion = 'na1';
+
+        const riotRegionTrigger = document.getElementById('riotRegionTrigger');
+        const riotRegionLabel = document.getElementById('riotRegionLabel');
+        const riotRegionPanel = document.getElementById('riotRegionPanel');
+        const riotRegionList = document.getElementById('riotRegionList');
+
+        function setRiotRegion(value) {
+            const opt = RIOT_REGIONS.find((r) => r.value === value) || RIOT_REGIONS[0];
+            selectedRiotRegion = opt.value;
+            riotRegionLabel.textContent = opt.label;
+        }
+
+        function renderRiotRegionList() {
+            riotRegionList.innerHTML = RIOT_REGIONS.map((r) => rowHtml(r.value, r.label, r.value === selectedRiotRegion)).join('');
+            riotRegionList.querySelectorAll('.combo-row').forEach((row) => {
+                row.addEventListener('click', () => {
+                    setRiotRegion(row.dataset.value);
+                    riotRegionComboCtl.close();
+                });
+            });
+        }
+        const riotRegionComboCtl = setupComboButton(riotRegionTrigger, riotRegionPanel, { onOpen: renderRiotRegionList });
+
+        function setRiotStatus(text, kind) {
+            riotStatusEl.textContent = text;
+            riotStatusEl.style.color = kind === 'error' ? 'var(--red)' : kind === 'ok' ? 'var(--green)' : '';
+        }
+
+        window.draftAPI.onSyncProgress((p) => {
+            if (p.phase === 'waiting') {
+                setRiotStatus(`Server asked us to slow down. Resuming in ${p.seconds}s...`);
+            } else if (p.phase === 'done') {
+                setRiotStatus(`Done. ${p.total} games synced.`, 'ok');
+            } else if (p.phase === 'error') {
+                setRiotStatus(p.message, 'error');
+            } else {
+                setRiotStatus(`Syncing... ${p.total} games found so far.`);
+            }
+        });
+
+        riotSyncBtn.addEventListener('click', async () => {
+            const raw = riotIdInputEl.value.trim();
+            const hashAt = raw.lastIndexOf('#');
+            if (hashAt < 1 || hashAt === raw.length - 1) {
+                setRiotStatus('Enter your Riot ID as Name#Tag.', 'error');
+                return;
+            }
+            riotSyncBtn.disabled = riotIdInputEl.disabled = riotRegionTrigger.disabled = true;
+            setRiotStatus('Looking up your account...');
+            const result = await window.draftAPI.syncMatches({
+                gameName: raw.slice(0, hashAt).trim(),
+                tagLine: raw.slice(hashAt + 1).trim(),
+                region: selectedRiotRegion
+            });
+            riotSyncBtn.disabled = riotIdInputEl.disabled = riotRegionTrigger.disabled = false;
+            if (!result.ok) {
+                setRiotStatus(result.error, 'error');
+            } else if (result.syncing) {
+                setRiotStatus('Saved. Syncing your games in the background...', 'ok');
+            } else {
+                setRiotStatus(`Done. ${result.total} games synced.`, 'ok');
+            }
+        });
 
         init();
     </script>

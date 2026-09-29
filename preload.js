@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('draftAPI', {
     onSettingsUpdate: (callback) => ipcRenderer.on('settings-update', (_event, data) => callback(data)),
     getSettings: () => ipcRenderer.invoke('get-settings'),
     updateSettings: (updates) => ipcRenderer.send('update-settings', updates),
+    syncMatches: (riotId) => ipcRenderer.invoke('sync-matches', riotId),
+    onSyncProgress: (callback) => ipcRenderer.on('sync-progress', (_event, data) => callback(data)),
     getChampionList: () => ipcRenderer.invoke('get-champion-list'),
     getPatchOptions: () => ipcRenderer.invoke('get-patch-options'),
     navigate: (page) => ipcRenderer.send('navigate-to', page),
