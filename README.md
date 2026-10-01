@@ -5,7 +5,7 @@ champion select and rates your champion pool against **your own match
 history** and a **rank-specific population baseline**. Not generic tier-list
 advice: your actual numbers, next to real ones.
 
-![LoLens champion select overlay](assets/screenshots/overlay-list.png)
+<img src="assets/screenshots/overlay-list.png" alt="LoLens champion select overlay" width="340">
 
 **Website:** [lolens.gg](https://www.lolens.gg) · **Downloads:** [Releases](https://github.com/DosenOff/LoLens/releases)
 
