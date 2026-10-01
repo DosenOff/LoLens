@@ -20,6 +20,7 @@
   "build": {
     "appId": "com.shawnlee.lolens",
     "productName": "LoLens",
+    "afterPack": "scripts/afterPack.js",
     "files": [
       "main.js",
       "preload.js",
@@ -37,11 +38,14 @@
     "mac": {
       "category": "public.app-category.utilities",
       "icon": "assets/icon/icon-mark.png",
-      "identity": "-"
+      "identity": "-",
+      "hardenedRuntime": false,
+      "artifactName": "LoLens-macOS-arm64.${ext}"
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/icon/icon.ico"
+      "icon": "assets/icon/icon.ico",
+      "artifactName": "LoLens-Windows.${ext}"
     }
   },
   "allowScripts": {

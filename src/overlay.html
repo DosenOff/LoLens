@@ -1540,9 +1540,17 @@
             }
         }
 
+        function tickTimer() {
+            const el = document.getElementById('timer');
+            if (!lastSession || lastSession.timerInfinite || !lastSession.timerDeadline) { el.textContent = '--:--'; return; }
+            const secs = Math.max(0, Math.ceil((lastSession.timerDeadline - Date.now()) / 1000));
+            el.textContent = formatTime(secs);
+        }
+        setInterval(tickTimer, 250);
+
         function render(session) {
             lastSession = session;
-            document.getElementById('timer').textContent = formatTime(session.timeLeftSeconds);
+            tickTimer();
             // Always re-render, even mid-drag - a new enemy pick/ban or a
             // timer tick during a drag should still show up live. What
             // caused the "pop back" look wasn't the re-render itself, it

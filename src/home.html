@@ -7,7 +7,7 @@
     <title>LoLens</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Teko:wght@400;500;600&family=Inter:wght@300;400;500&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap"        
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Teko:wght@400;500;600&family=Inter:wght@300;400;500&family=Barlow+Semi+Condensed:wght@400;500;600&display=swap"
         rel="stylesheet">
     <style>
         :root {
@@ -1451,6 +1451,14 @@
         // when a draft ends.
         let localRoleOverrides = {};
 
+        function tickTimer() {
+            const el = document.getElementById('turnTimer');
+            if (!lastSession || lastSession.timerInfinite || !lastSession.timerDeadline) { el.textContent = '--:--'; return; }
+            const secs = Math.max(0, Math.ceil((lastSession.timerDeadline - Date.now()) / 1000));
+            el.textContent = formatTime(secs);
+        }
+        setInterval(tickTimer, 250);
+
         function render(session) {
             lastSession = session;
             document.getElementById('status').classList.add('live');
@@ -1458,7 +1466,7 @@
             document.getElementById('footerNote').textContent = 'live · connected to League Client';
 
             document.getElementById('turnLabel').textContent = session.isMyTurn ? 'Your turn to pick' : 'Waiting for other players...';
-            document.getElementById('turnTimer').textContent = formatTime(session.timeLeftSeconds);
+            tickTimer();
 
             const myPick = (session.myTeam || []).find((p) => p.cellId === session.localPlayerCellId);
             const myPositionKey = myPick && myPick.position ? myPick.position.toLowerCase() : null;
