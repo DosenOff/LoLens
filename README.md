@@ -1,69 +1,128 @@
 # LoLens
 
 A real-time League of Legends draft companion. LoLens watches your live
-champion select and surfaces your own match history against whoever's
-being picked or banned — plus how that compares to a real, rank-specific
-population baseline. Not generic tier-list advice — your actual numbers,
-next to real ones.
+champion select and rates your champion pool against **your own match
+history** and a **rank-specific population baseline**. Not generic tier-list
+advice: your actual numbers, next to real ones.
 
-![LoLens champion select screen](image.png)
+![LoLens champion select overlay](assets/screenshots/overlay-list.png)
 
-## Status
+**Website:** [lolens.gg](https://www.lolens.gg) · **Downloads:** [Releases](https://github.com/DosenOff/LoLens/releases)
 
-Core loop is working end-to-end: LoLens runs in the background, detects
-League launching, and tracks live champion select (picks, bans, timer,
-turn state). For any enemy pick, it shows your personal win rate against
-them, broken down by which of your champions you played. For your own
-pick, it shows your win rate next to a sampled population baseline
-(Emerald/Diamond/Master+) for that champion, that specific matchup, and
-synergy with your picked allies.
+> **Status: alpha.** Features are still being refined, and you may run into
+> bugs or incomplete functionality.
+
+## What it does
+
+- Runs quietly in the tray. When League launches, a small toast lets you
+  know LoLens is watching.
+- In champion select, a corner overlay (and the dashboard) shows picks, bans,
+  and a live countdown, read straight from the League Client.
+- Rates every champion in your per-role pool against the current draft:
+  `Rating = Base WR + Personal Δ + Counter Δ + Synergy Δ`. Every term is
+  shown, and a term only counts when there's real data behind it.
+- Sample-size weighting keeps a 4-1 record from outweighing hundreds of games.
+  You can tune or turn it off in Settings.
+- Drag an enemy portrait into a role slot to correct who your lane opponent
+  is. Counter stats update to match.
+
+## Getting started
+
+1. Download the installer for your OS from [lolens.gg](https://www.lolens.gg)
+   or the [Releases](https://github.com/DosenOff/LoLens/releases) page.
+   Available for Windows and for macOS on Apple Silicon.
+2. Open LoLens and enter your Riot ID and region. No account, no API key.
+3. Set your champion pools in Settings, then start a draft.
+
+**macOS:** LoLens isn't notarized yet, so macOS blocks the first launch. After
+moving it to Applications, do either of these:
+
+- Open System Settings → Privacy & Security, scroll down, and click
+  **Open Anyway**. (On macOS 14 and earlier, right-click the app and choose
+  **Open** instead.)
+- Or run this once in Terminal. It clears only the download-quarantine flag
+  on the app:
+
+```
+xattr -dr com.apple.quarantine /Applications/LoLens.app
+```
+
+**Windows:** SmartScreen may warn because the installer isn't code-signed yet.
+Click **More info → Run anyway**.
+
+## Is it safe?
+
+- **Read-only.** LoLens only makes `GET` requests to the League Client's local
+  API to read champion select. It cannot pick, ban, click, or chat, and it
+  never automates gameplay or touches game memory.
+- **Verifiable releases.** GitHub shows a SHA-256 checksum next to every
+  release file, so you can confirm your download matches before running it.
+- **Source is viewable.** The source is published here so you can read and
+  audit what the app does. It is **not** open source: see
+  [Copyright](#copyright).
+- **Honest about the network.** See [Your data](#your-data) for exactly what
+  leaves your computer.
+- **Unofficial API.** The League Client API is unofficial and not supported by
+  Riot for third-party use, so it could change or break at any time.
+
+## Your data
+
+**Stays on your computer:** your live champion select, champion pools,
+settings, Riot ID, and synced match history, all stored in local files.
+
+**Sent to the LoLens server:** your Riot ID (name and tag) and region, when you
+sync, so the server can fetch your public ranked match history from Riot's API
+and return it. The server holds the Riot API key so you don't need one.
+The hosting provider may keep standard request logs.
+
+**Other requests:** champion and rank images come from Riot's Data Dragon CDN,
+and fonts from Google Fonts, so those services can see your IP address.
+
+No analytics, no ads, nothing sold or shared. Full policy on
+[lolens.gg](https://www.lolens.gg) (footer).
 
 ## How it works
 
-- **Electron** shell for the desktop app, tray icon, and corner overlay
-- **League Client API (LCU)** — local, unofficial — for live champion
-  select state
-- **Riot Web API** — for personal match history, plus a sampled
-  rank-specific population baseline (built from Riot's own league/match
-  endpoints — no scraping, no third-party data)
+- **Electron** shell: tray icon, toast, corner overlay, and a small
+  multi-page dashboard (home, settings, about).
+- **League Client API (LCU)**: local and unofficial, for live champion select.
+- **Riot Web API**: via the LoLens server, for personal match history and the
+  rank-specific population baseline (built from Riot's own league and match
+  endpoints: no scraping, no third-party data).
 
 ### A note on the population baseline
 
-This isn't Riot's own statistic — there isn't one. LoLens samples real
-players from specific rank tiers/divisions via `league-v4`, pulls their
-recent ranked matches, and counts *only that known-rank player's own
-game result* per match (not all 10 participants — the other 9 players'
-ranks aren't actually knowable from match data, so counting them would
-silently mislabel the sample). This means the numbers are a real but
-deliberately modest sample, not a comprehensive statistic — sample sizes
-are shown alongside every number so you can judge confidence yourself.
+This isn't a Riot statistic; there isn't one. LoLens samples real players from
+specific rank tiers and divisions via `league-v4`, pulls their recent ranked
+matches, and counts **only that known-rank player's own result** per match.
+The other nine players' ranks aren't knowable from match data, so counting
+them would silently mislabel the sample. The numbers are a real but
+deliberately modest sample, and sample sizes are shown next to every number so
+you can judge confidence yourself.
 
-## Running it locally
- 
+## Development (maintainer notes)
+
 ```
 npm install
-cp .env.example .env   # then fill in your Riot API key and Riot ID
+cp .env.example .env   # Riot API key + Riot ID, used by the fetch scripts only
 npm start
 ```
-(Windows Command Prompt has no `cp` - use `copy .env.example .env` instead; PowerShell accepts `cp` as-is.)
- 
-To pull your own match history for personal matchup stats:
+
+(Windows Command Prompt has no `cp`: use `copy .env.example .env`.)
+
+The fetch scripts build the data the app ships with. They need a Riot API key
+and are not something end users run:
+
 ```
 npm run fetch-champion-data
-npm run fetch-match-ids
-npm run fetch-match-details
+npm run fetch-population-data     # rerun anytime to grow the sample
 ```
- 
-To build the population baseline (rerun anytime to grow the sample):
-```
-npm run fetch-population-data
-```
- 
-To get real rank emblem art for the overlay's tier badge (one-time setup -
-this is a static Riot-hosted asset, not something that needs regenerating
-per patch):
 
-macOS/Linux:
+<details>
+<summary>One-time asset setup (rank emblems and role icons)</summary>
+
+Rank emblem art for the overlay's tier badge. macOS/Linux:
+
 ```
 curl -fL https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip -o ranked-emblems.zip
 mkdir -p assets/rank-emblems
@@ -78,6 +137,7 @@ rm -rf "Ranked Emblems Latest" "Tier Wings" "Wings"
 ```
 
 Windows (PowerShell):
+
 ```
 Invoke-WebRequest https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip -OutFile ranked-emblems.zip
 New-Item -ItemType Directory -Force assets\rank-emblems | Out-Null
@@ -90,15 +150,9 @@ Get-ChildItem "Rank=*.png" | ForEach-Object {
 Set-Location ..
 Remove-Item -Recurse -Force "Ranked Emblems Latest", "Tier Wings", "Wings"
 ```
-Without this, the overlay's tier badge falls back to a plain gold diamond
-rather than the real emblem - it degrades gracefully, it just won't look
-as sharp.
 
-To get the real role icons the overlay shows underneath a portrait while
-it's being dragged (one-time setup - these are fixed, patch-independent
-assets, not something that needs regenerating per patch):
+Role icons shown while dragging an enemy portrait. macOS/Linux:
 
-macOS/Linux:
 ```
 mkdir -p assets/role-icons
 BASE="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions"
@@ -108,6 +162,7 @@ done
 ```
 
 Windows (PowerShell):
+
 ```
 New-Item -ItemType Directory -Force assets\role-icons | Out-Null
 $base = "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions"
@@ -115,31 +170,27 @@ foreach ($role in "top","jungle","middle","bottom","utility") {
   Invoke-WebRequest "$base/icon-position-$role.png" -OutFile "assets\role-icons\$role.png"
 }
 ```
-Without this, that drag backdrop falls back to the plain TOP/JG/MID/BOT/SUP
-text label instead of the icon - again, degrades gracefully rather than
-showing a broken image. If CommunityDragon is ever down or this path
-changes, browse
-https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/assets/images/position-selector/positions/
-directly to find the current filenames and adjust the loop above.
 
+Without these, the UI degrades gracefully (a plain gold diamond, and text
+labels instead of icons).
 
-## Roadmap
+</details>
 
-- [x] Connect to live LCU champion select session
-- [x] Pull real match history via Riot API
-- [x] Show matchup-specific win rate stats, live, in-app
-- [x] Rank-specific population baseline (Emerald/Diamond/Master+)
-- [x] Matchup-specific and team-synergy population comparisons
-- [ ] Gold differential @15 (requires match timeline data)
-- [ ] Packaged .app build
-- [ ] Auto-launch at system login (optional)
+## Copyright
+
+Copyright © 2026 Shawn Lee. **All rights reserved.**
+
+The source code in this repository is published for transparency only. No
+license is granted to copy, modify, redistribute, sublicense, or build
+derivative works from it. You may download and use the official LoLens
+releases for personal use under the terms on [lolens.gg](https://www.lolens.gg).
 
 ## Legal
 
 LoLens is not endorsed by Riot Games and does not reflect the views or
-opinions of Riot Games or anyone officially involved in producing or
-managing League of Legends. League of Legends and Riot Games are
-trademarks or registered trademarks of Riot Games, Inc.
+opinions of Riot Games or anyone officially involved in producing or managing
+League of Legends. League of Legends and Riot Games are trademarks or
+registered trademarks of Riot Games, Inc.
 
-The League Client API used here is unofficial and not supported by Riot
-for third-party use.
+The League Client API used here is unofficial and not supported by Riot for
+third-party use.
