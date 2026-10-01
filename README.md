@@ -44,7 +44,7 @@ moving it to Applications, do either of these:
   on the app:
 
 ```
-xattr -dr com.apple.quarantine /Applications/LoLens.app
+xattr -d com.apple.quarantine /Applications/LoLens.app
 ```
 
 **Windows:** SmartScreen may warn because the installer isn't code-signed yet.
